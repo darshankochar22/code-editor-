@@ -23,7 +23,7 @@ export default function Right() {
   const [isSaving, setIsSaving] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [containerLoading, setContainerLoading] = useState(false);
-  const [userId, setUserId] = useState('1');
+  const [userId] = useState('1');
   const [error, setError] = useState<string | null>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -325,11 +325,13 @@ export default function Right() {
   }
 
   function buildFileTree(flatFiles: string[]): FileNode[] {
-    const root: { [key: string]: FileNode } = {};
+    type TreeNode = FileNode & { _children?: { [key: string]: TreeNode } };
+    const root: { [key: string]: TreeNode } = {};
     
+    // Build tree structure
     flatFiles.forEach(filePath => {
       const parts = filePath.split('/').filter(p => p.length > 0);
-      let currentLevel: any = root;
+      let currentLevel = root;
       
       parts.forEach((part, index) => {
         if (!currentLevel[part]) {
@@ -340,34 +342,45 @@ export default function Right() {
             name: part,
             type: isFile ? 'file' : 'folder',
             path: fullPath,
-            children: isFile ? undefined : []
+            children: isFile ? undefined : [],
+            _children: isFile ? undefined : {}
           };
         }
         
-        if (currentLevel[part].children !== undefined && index < parts.length - 1) {
-          const childrenMap: any = {};
-          currentLevel[part].children!.forEach((node: FileNode) => {
-            childrenMap[node.name] = node;
-          });
-          currentLevel = childrenMap;
+        // Move to next level for folders (not files)
+        if (!parts[index + 1]) return; // No more parts
+        
+        const node = currentLevel[part];
+        if (!node._children) {
+          node._children = {};
         }
+        currentLevel = node._children;
       });
     });
     
-    // Convert to sorted array
-    function sortNodes(nodes: FileNode[]): FileNode[] {
-      return nodes.sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name);
-        return a.type === 'folder' ? -1 : 1;
-      }).map(node => {
-        if (node.children) {
-          node.children = sortNodes(node.children);
-        }
-        return node;
-      });
+    // Convert tree structure to sorted array
+    function convertToArray(nodeMap: { [key: string]: TreeNode }): FileNode[] {
+      return Object.values(nodeMap)
+        .sort((a, b) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name);
+          return a.type === 'folder' ? -1 : 1;
+        })
+        .map(node => {
+          const result: FileNode = {
+            name: node.name,
+            type: node.type,
+            path: node.path
+          };
+          
+          if (node.type === 'folder' && node._children) {
+            result.children = convertToArray(node._children);
+          }
+          
+          return result;
+        });
     }
     
-    return sortNodes(Object.values(root));
+    return convertToArray(root);
   }
 
   function getLanguage(filename: string): string {
