@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type MonacoType = any;
 
 type FileNode = {
@@ -19,37 +19,51 @@ export default function Right() {
   const [openFile, setOpenFile] = useState<FileNode | null>(null);
   const [fileContents, setFileContents] = useState<Map<string, string>>(new Map());
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src']));
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [containerLoading, setContainerLoading] = useState(false);
   const [userId, setUserId] = useState('1');
+  const [error, setError] = useState<string | null>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedDeltaRef = useRef(0);
 
   // Load file tree from Docker container
-  useEffect(() => {
-    async function loadFiles() {
-      try {
-        const response = await fetch('/api/docker', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getFiles', userId })
-        });
-        const data = await response.json();
-        if (data.success && data.files) {
-          // Transform flat file list into tree structure
-          const tree = buildFileTree(data.files);
-          setFiles(tree);
-        }
-      } catch (error) {
-        console.error('Failed to load files:', error);
-      } finally {
-        setIsLoading(false);
+  async function loadFiles() {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/docker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getFiles', userId })
+      });
+      const data = await response.json();
+      
+      if (data.success && data.files) {
+        const tree = buildFileTree(data.files);
+        setFiles(tree);
+        
+        // Auto-expand common folders
+        const commonFolders = ['src', 'contracts'];
+        setExpandedFolders(new Set(commonFolders));
+      } else {
+        setError(data.error || 'Failed to load files');
+        setFiles([]);
       }
+    } catch (error) {
+      console.error('Failed to load files:', error);
+      setError('Failed to connect to server');
+      setFiles([]);
+    } finally {
+      setIsLoading(false);
     }
+  }
+
+  // Load files on mount and when userId changes
+  useEffect(() => {
     loadFiles();
   }, [userId]);
 
@@ -107,9 +121,9 @@ export default function Right() {
           const editor = editorRef.current;
           if (!editor) return;
 
-           const currentFontSize = (editor.getOption(55) as unknown as number) || 14; // 55 is fontSize option
-           const normalizedDelta = accumulatedDeltaRef.current / 100;
-           const zoomDelta = Math.round(normalizedDelta);
+          const currentFontSize = (editor.getOption(55) as unknown as number) || 14;
+          const normalizedDelta = accumulatedDeltaRef.current / 100;
+          const zoomDelta = Math.round(normalizedDelta);
 
           if (zoomDelta !== 0) {
             const newFontSize = Math.max(8, Math.min(40, currentFontSize - zoomDelta));
@@ -129,7 +143,7 @@ export default function Right() {
     editorRef.current = editorInstance;
     editorInstance.focus();
 
-    // Configure Rust/TOML support
+    // Configure language support
     if (monaco && monaco.languages) {
       monaco.languages.typescript?.typescriptDefaults?.setCompilerOptions({
         target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -168,6 +182,7 @@ export default function Right() {
 
   async function handleFileClick(file: FileNode) {
     if (file.type === 'file') {
+      // Check if already loaded
       if (fileContents.has(file.path)) {
         setOpenFile(file);
         return;
@@ -180,14 +195,17 @@ export default function Right() {
           body: JSON.stringify({ action: 'getFileContent', userId, filePath: file.path })
         });
         const data = await response.json();
+        
         if (data.success) {
           setFileContents(prev => new Map(prev).set(file.path, data.content));
           setOpenFile(file);
+          setError(null);
         } else {
-          console.error('Failed to load file:', data.error);
+          setError(`Failed to load ${file.name}: ${data.error}`);
         }
       } catch (error) {
         console.error('Failed to load file:', error);
+        setError(`Failed to load ${file.name}`);
       }
     }
   }
@@ -196,8 +214,10 @@ export default function Right() {
     if (!openFile) return;
 
     setIsSaving(true);
+    setError(null);
+    
     try {
-      const content = fileContents.get(openFile.path);
+      const content = fileContents.get(openFile.path) || '';
       const response = await fetch('/api/docker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,13 +230,17 @@ export default function Right() {
       });
 
       const data = await response.json();
+      
       if (data.success) {
         console.log('File saved successfully');
+        // Show brief success indicator
+        setTimeout(() => setError(null), 2000);
       } else {
-        console.error('Failed to save file:', data.error);
+        setError(`Failed to save: ${data.error}`);
       }
     } catch (error) {
       console.error('Failed to save file:', error);
+      setError('Failed to save file');
     } finally {
       setIsSaving(false);
     }
@@ -224,6 +248,8 @@ export default function Right() {
 
   async function handleCreateContainer() {
     setContainerLoading(true);
+    setError(null);
+    
     try {
       const response = await fetch('/api/docker', {
         method: 'POST',
@@ -232,21 +258,30 @@ export default function Right() {
       });
       
       const data = await response.json();
+      
       if (data.success) {
         console.log('Container created:', data.message);
-        setUserId(String(parseInt(userId) + 1));
+        // Reload files after container creation
+        await loadFiles();
       } else {
-        console.error('Error creating container:', data.error);
+        setError(`Failed to create container: ${data.error}`);
       }
     } catch (error) {
       console.error('Failed to create container:', error);
+      setError('Failed to create container');
     } finally {
       setContainerLoading(false);
     }
   }
 
   async function handleDeleteContainer() {
+    if (!confirm(`Delete container for user ${userId}?`)) {
+      return;
+    }
+
     setContainerLoading(true);
+    setError(null);
+    
     try {
       const response = await fetch('/api/docker', {
         method: 'POST',
@@ -255,14 +290,19 @@ export default function Right() {
       });
       
       const data = await response.json();
+      
       if (data.success) {
         console.log('Container deleted:', data.message);
-        setUserId(String(Math.max(1, parseInt(userId) - 1)));
+        // Clear state
+        setFiles([]);
+        setOpenFile(null);
+        setFileContents(new Map());
       } else {
-        console.error('Error deleting container:', data.error);
+        setError(`Failed to delete container: ${data.error}`);
       }
     } catch (error) {
       console.error('Failed to delete container:', error);
+      setError('Failed to delete container');
     } finally {
       setContainerLoading(false);
     }
@@ -288,45 +328,68 @@ export default function Right() {
     const root: { [key: string]: FileNode } = {};
     
     flatFiles.forEach(filePath => {
-      const parts = filePath.split('/');
-      let current = root;
+      const parts = filePath.split('/').filter(p => p.length > 0);
+      let currentLevel: any = root;
       
       parts.forEach((part, index) => {
-        if (!part) return;
-        
-        if (!current[part]) {
-          const isFile = index === parts.length - 1 && filePath.includes('.');
-          current[part] = {
+        if (!currentLevel[part]) {
+          const isFile = index === parts.length - 1;
+          const fullPath = parts.slice(0, index + 1).join('/');
+          
+          currentLevel[part] = {
             name: part,
             type: isFile ? 'file' : 'folder',
-            path: parts.slice(0, index + 1).join('/'),
+            path: fullPath,
             children: isFile ? undefined : []
           };
         }
         
-        if (current[part].children !== undefined) {
-          current = current[part].children!.reduce((acc, node) => {
-            acc[node.name] = node;
-            return acc;
-          }, {} as { [key: string]: FileNode });
+        if (currentLevel[part].children !== undefined && index < parts.length - 1) {
+          const childrenMap: any = {};
+          currentLevel[part].children!.forEach((node: FileNode) => {
+            childrenMap[node.name] = node;
+          });
+          currentLevel = childrenMap;
         }
       });
     });
     
-    return Object.values(root).sort((a, b) => {
-      if (a.type === b.type) return a.name.localeCompare(b.name);
-      return a.type === 'folder' ? -1 : 1;
-    });
+    // Convert to sorted array
+    function sortNodes(nodes: FileNode[]): FileNode[] {
+      return nodes.sort((a, b) => {
+        if (a.type === b.type) return a.name.localeCompare(b.name);
+        return a.type === 'folder' ? -1 : 1;
+      }).map(node => {
+        if (node.children) {
+          node.children = sortNodes(node.children);
+        }
+        return node;
+      });
+    }
+    
+    return sortNodes(Object.values(root));
   }
 
   function getLanguage(filename: string): string {
-    if (filename.endsWith('.rs')) return 'rust';
-    if (filename.endsWith('.toml')) return 'toml';
-    if (filename.endsWith('.json')) return 'json';
-    if (filename.endsWith('.md')) return 'markdown';
-    if (filename.endsWith('.js') || filename.endsWith('.jsx')) return 'javascript';
-    if (filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'typescript';
-    return 'plaintext';
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const languageMap: { [key: string]: string } = {
+      'rs': 'rust',
+      'toml': 'toml',
+      'json': 'json',
+      'md': 'markdown',
+      'js': 'javascript',
+      'jsx': 'javascript',
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'html': 'html',
+      'css': 'css',
+      'scss': 'scss',
+      'yaml': 'yaml',
+      'yml': 'yaml',
+      'sh': 'shell',
+      'py': 'python',
+    };
+    return languageMap[ext || ''] || 'plaintext';
   }
 
   function renderFileTree(nodes: FileNode[], depth = 0) {
@@ -393,6 +456,7 @@ export default function Right() {
         }
       }
     }
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fontSize, openFile, fileContents]);
@@ -400,37 +464,52 @@ export default function Right() {
   return (
     <div className="flex flex-col h-screen bg-[#171717]">
       {/* Top bar */}
-      <div className="h-8 bg-[#171717] border-b border-[#252525] flex items-center justify-between px-3">
-        <div className="flex items-center gap-4">
+      <div className="h-10 bg-[#171717] border-b border-[#252525] flex items-center justify-between px-3">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">User: {userId}</span>
           {openFile && (
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="text-xs text-gray-400 hover:text-gray-200 disabled:opacity-50"
+              className="text-xs px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
             >
-              {isSaving ? 'Saving...' : 'Save (⌘S)'}
+              {isSaving ? 'Saving...' : '💾 Save (⌘S)'}
             </button>
           )}
           <button
             onClick={handleCreateContainer}
             disabled={containerLoading}
-            className="text-xs px-2 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
+            className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
-            {containerLoading ? 'Creating...' : '+ Container'}
+            {containerLoading ? '⏳' : '+ Container'}
           </button>
           <button
             onClick={handleDeleteContainer}
             disabled={containerLoading}
-            className="text-xs px-2 py-1 rounded bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
+            className="text-xs px-3 py-1 rounded bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
-            {containerLoading ? 'Deleting...' : '- Container'}
+            {containerLoading ? '⏳' : '🗑️ Delete'}
+          </button>
+          <button
+            onClick={loadFiles}
+            disabled={isLoading}
+            className="text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
+          >
+            {isLoading ? '⏳' : '🔄 Refresh'}
           </button>
         </div>
         <div className="text-xs text-gray-500 flex items-center gap-2">
           <span>Zoom: {fontSize}px</span>
-          <span className="text-gray-600">| ⌘/Ctrl+Scroll to zoom</span>
+          <span className="text-gray-600">| ⌘/Ctrl+Scroll</span>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-900/50 border-b border-red-800 px-4 py-2">
+          <p className="text-red-200 text-sm">⚠️ {error}</p>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
@@ -439,6 +518,10 @@ export default function Right() {
           <div className="py-2">
             {isLoading ? (
               <div className="px-4 py-2 text-gray-500 text-sm">Loading files...</div>
+            ) : files.length === 0 ? (
+              <div className="px-4 py-2 text-gray-500 text-sm">
+                No files. Create a container first.
+              </div>
             ) : (
               renderFileTree(files)
             )}
@@ -506,20 +589,19 @@ export default function Right() {
             <div className="text-xs text-gray-500 flex items-center gap-2">
               {openFile ? (
                 <>
-                  <span>Line: {openFile.name}</span>
+                  <span>{openFile.name}</span>
                   <span className="text-gray-600">|</span>
-                  <span>Encoding: UTF-8</span>
+                  <span>UTF-8</span>
                 </>
               ) : (
                 <span>No file selected</span>
               )}
             </div>
             <div className="text-xs text-gray-500">
-              Ln {openFile ? 1 : 0}, Col 1
+              {openFile ? `Ln 1, Col 1` : ''}
             </div>
           </div>
         </div>
-      
       </div>
     </div>
   );
