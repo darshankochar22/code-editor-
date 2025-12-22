@@ -29,13 +29,21 @@ export default function Right() {
   const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedDeltaRef = useRef(0);
 
-  // Load file tree on mount
+  // Load file tree from Docker container
   useEffect(() => {
     async function loadFiles() {
       try {
-        const response = await fetch('/api/files');
+        const response = await fetch('/api/docker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getFiles', userId })
+        });
         const data = await response.json();
-        setFiles(data.files);
+        if (data.success && data.files) {
+          // Transform flat file list into tree structure
+          const tree = buildFileTree(data.files);
+          setFiles(tree);
+        }
       } catch (error) {
         console.error('Failed to load files:', error);
       } finally {
@@ -43,7 +51,7 @@ export default function Right() {
       }
     }
     loadFiles();
-  }, []);
+  }, [userId]);
 
   // Remove Monaco blue borders
   useEffect(() => {
@@ -166,10 +174,18 @@ export default function Right() {
       }
 
       try {
-        const response = await fetch(`/api/files?path=${encodeURIComponent(file.path)}`);
+        const response = await fetch('/api/docker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getFileContent', userId, filePath: file.path })
+        });
         const data = await response.json();
-        setFileContents(prev => new Map(prev).set(file.path, data.content));
-        setOpenFile(file);
+        if (data.success) {
+          setFileContents(prev => new Map(prev).set(file.path, data.content));
+          setOpenFile(file);
+        } else {
+          console.error('Failed to load file:', data.error);
+        }
       } catch (error) {
         console.error('Failed to load file:', error);
       }
@@ -182,14 +198,22 @@ export default function Right() {
     setIsSaving(true);
     try {
       const content = fileContents.get(openFile.path);
-      const response = await fetch('/api/files', {
+      const response = await fetch('/api/docker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: openFile.path, content })
+        body: JSON.stringify({ 
+          action: 'saveFileContent', 
+          userId, 
+          filePath: openFile.path, 
+          content 
+        })
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
         console.log('File saved successfully');
+      } else {
+        console.error('Failed to save file:', data.error);
       }
     } catch (error) {
       console.error('Failed to save file:', error);
@@ -258,6 +282,41 @@ export default function Right() {
 
   function getFileContent(file: FileNode): string {
     return fileContents.get(file.path) ?? '';
+  }
+
+  function buildFileTree(flatFiles: string[]): FileNode[] {
+    const root: { [key: string]: FileNode } = {};
+    
+    flatFiles.forEach(filePath => {
+      const parts = filePath.split('/');
+      let current = root;
+      
+      parts.forEach((part, index) => {
+        if (!part) return;
+        
+        if (!current[part]) {
+          const isFile = index === parts.length - 1 && filePath.includes('.');
+          current[part] = {
+            name: part,
+            type: isFile ? 'file' : 'folder',
+            path: parts.slice(0, index + 1).join('/'),
+            children: isFile ? undefined : []
+          };
+        }
+        
+        if (current[part].children !== undefined) {
+          current = current[part].children!.reduce((acc, node) => {
+            acc[node.name] = node;
+            return acc;
+          }, {} as { [key: string]: FileNode });
+        }
+      });
+    });
+    
+    return Object.values(root).sort((a, b) => {
+      if (a.type === b.type) return a.name.localeCompare(b.name);
+      return a.type === 'folder' ? -1 : 1;
+    });
   }
 
   function getLanguage(filename: string): string {
