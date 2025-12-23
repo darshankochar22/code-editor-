@@ -484,7 +484,7 @@ export default function Right() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="text-xs px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
+              className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
             >
               {isSaving ? 'Saving...' : '💾 Save (⌘S)'}
             </button>
@@ -492,21 +492,21 @@ export default function Right() {
           <button
             onClick={handleCreateContainer}
             disabled={containerLoading}
-            className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
+            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
             {containerLoading ? '⏳' : '+ Container'}
           </button>
           <button
             onClick={handleDeleteContainer}
             disabled={containerLoading}
-            className="text-xs px-3 py-1 rounded bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
+            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
             {containerLoading ? '⏳' : '🗑️ Delete'}
           </button>
           <button
             onClick={loadFiles}
             disabled={isLoading}
-            className="text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
+            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
           >
             {isLoading ? '⏳' : '🔄 Refresh'}
           </button>
@@ -519,8 +519,8 @@ export default function Right() {
 
       {/* Error banner */}
       {error && (
-        <div className="bg-red-900/50 border-b border-red-800 px-4 py-2">
-          <p className="text-red-200 text-sm">⚠️ {error}</p>
+        <div className="dark:bg-black  px-4 py-2">
+          <p className="text-white text-sm">{error}</p>
         </div>
       )}
 
@@ -584,6 +584,7 @@ export default function Right() {
                   renderLineHighlight: 'gutter',
                   overviewRulerBorder: false,
                   hideCursorInOverviewRuler: false,
+        
                 }}
               />
             ) : (
