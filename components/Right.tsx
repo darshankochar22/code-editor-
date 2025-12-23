@@ -721,7 +721,7 @@ export default function Right() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        handleSave();
+        //handleSave();
       }
 
       if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
