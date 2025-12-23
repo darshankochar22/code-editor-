@@ -6,7 +6,9 @@ import {
   getFileContent,
   saveFileContent,
   createFile,
-  createFolder
+  createFolder,
+  deleteFile,
+  deleteFolder
 } from '@/lib/docker';
 
 export async function POST(request: Request) {
@@ -41,6 +43,14 @@ export async function POST(request: Request) {
       case 'createFolder':
         const createFolderResult = await createFolder(userId, filePath);
         return NextResponse.json(createFolderResult);
+
+      case 'deleteFile':
+        const deleteFileResult = await deleteFile(userId, filePath);
+        return NextResponse.json(deleteFileResult);
+
+      case 'deleteFolder':
+        const deleteFolderResult = await deleteFolder(userId, filePath);
+        return NextResponse.json(deleteFolderResult);
 
       default:
         return NextResponse.json(

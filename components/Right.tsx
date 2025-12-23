@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { FilePlus, FolderPlus, X } from 'lucide-react';
+import { FilePlus, FolderPlus, X, Trash2 } from 'lucide-react';
 
 type MonacoType = any;
 
@@ -324,6 +324,88 @@ export default function Right() {
     setNewItemName('');
   }
 
+  async function handleDeleteFile(filePath: string) {
+    if (!confirm(`Delete file: ${filePath}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/docker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'deleteFile',
+          userId, 
+          filePath
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('File deleted:', filePath);
+        // Close the file if it's currently open
+        if (openFile?.path === filePath) {
+          setOpenFile(null);
+        }
+        // Remove from file contents
+        setFileContents(prev => {
+          const newContents = new Map(prev);
+          newContents.delete(filePath);
+          return newContents;
+        });
+        // Reload file tree
+        await loadFiles();
+      } else {
+        setError(`Failed to delete file: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+      setError('Failed to delete file');
+    }
+  }
+
+  async function handleDeleteFolder(folderPath: string) {
+    if (!confirm(`Delete folder and all contents: ${folderPath}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/docker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'deleteFolder',
+          userId, 
+          filePath: folderPath
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('Folder deleted:', folderPath);
+        // Close any files in this folder
+        if (openFile?.path.startsWith(folderPath)) {
+          setOpenFile(null);
+        }
+        // Remove folder from expanded list
+        setExpandedFolders(prev => {
+          const newExpanded = new Set(prev);
+          newExpanded.delete(folderPath);
+          return newExpanded;
+        });
+        // Reload file tree
+        await loadFiles();
+      } else {
+        setError(`Failed to delete folder: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete folder:', error);
+      setError('Failed to delete folder');
+    }
+  }
+
   async function handleCreateContainer() {
     setContainerLoading(true);
     setError(null);
@@ -508,31 +590,50 @@ export default function Right() {
               )}
               <span className="text-gray-300 text-sm flex-1">{node.name}</span>
               
-              {/* Create buttons on hover for folders */}
-              {node.type === 'folder' && (
-                <div className="hidden group-hover:flex items-center gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCreateFile(node.path);
-                    }}
-                    className="p-1 hover:bg-[#333] rounded transition-colors"
-                    title="New File"
-                  >
-                    <FilePlus className="w-3 h-3 text-gray-400" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCreateFolder(node.path);
-                    }}
-                    className="p-1 hover:bg-[#333] rounded transition-colors"
-                    title="New Folder"
-                  >
-                    <FolderPlus className="w-3 h-3 text-gray-400" />
-                  </button>
-                </div>
-              )}
+              {/* Hover actions */}
+              <div className="hidden group-hover:flex items-center gap-1">
+                {/* Create buttons for folders */}
+                {node.type === 'folder' && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateFile(node.path);
+                      }}
+                      className="p-1 hover:bg-[#333] rounded transition-colors"
+                      title="New File"
+                    >
+                      <FilePlus className="w-3 h-3 text-gray-400" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateFolder(node.path);
+                      }}
+                      className="p-1 hover:bg-[#333] rounded transition-colors"
+                      title="New Folder"
+                    >
+                      <FolderPlus className="w-3 h-3 text-gray-400" />
+                    </button>
+                  </>
+                )}
+                
+                {/* Delete button for both files and folders */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (node.type === 'file') {
+                      handleDeleteFile(node.path);
+                    } else {
+                      handleDeleteFolder(node.path);
+                    }
+                  }}
+                  className="p-1 hover:bg-[#ff4444] rounded transition-colors"
+                  title={`Delete ${node.type}`}
+                >
+                  <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-400" />
+                </button>
+              </div>
             </div>
             
             {/* Show input for creating new item in this folder */}
@@ -662,11 +763,10 @@ export default function Right() {
           <span className="text-xs text-gray-500">User: {userId}</span>
           {openFile && (
             <button
-              onClick={handleSave}
               disabled={isSaving}
               className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
             >
-              {isSaving ? 'Saving...' : '💾 Save (⌘S)'}
+              {isSaving ? 'Saving...' : 'Save (⌘S)'}
             </button>
           )}
           <button
@@ -674,21 +774,21 @@ export default function Right() {
             disabled={containerLoading}
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
-            {containerLoading ? '⏳' : '+ Container'}
+            {containerLoading ? 'Loading...' : 'Create Container'}
           </button>
           <button
             onClick={handleDeleteContainer}
             disabled={containerLoading}
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
-            {containerLoading ? '⏳' : '🗑️ Delete'}
+            {containerLoading ? 'Loading...' : 'Delete Container'}
           </button>
           <button
             onClick={loadFiles}
             disabled={isLoading}
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
           >
-            {isLoading ? '⏳' : '🔄 Refresh'}
+            {isLoading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
         <div className="text-xs text-gray-500 flex items-center gap-2">

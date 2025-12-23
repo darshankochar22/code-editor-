@@ -343,3 +343,47 @@ export async function createFolder(userId: string, folderPath: string) {
     };
   }
 }
+
+export async function deleteFile(userId: string, filePath: string) {
+  try {
+    const containerName = `user${userId}`;
+    const safePath = escapeFilePath(filePath);
+    console.log(`Deleting file: ${safePath} in container: ${containerName}`);
+
+    const fullPath = `/home/developer/workspace/soroban-hello-world/${safePath}`;
+    await execAsync(
+      `docker exec -u developer ${containerName} rm -f ${escapeShellArg(fullPath)}`,
+      { timeout: 5000 }
+    );
+    console.log('File deleted successfully');
+    return { success: true, message: 'File deleted' };
+  } catch (error: any) {
+    console.error('Docker error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete file'
+    };
+  }
+}
+
+export async function deleteFolder(userId: string, folderPath: string) {
+  try {
+    const containerName = `user${userId}`;
+    const safePath = escapeFilePath(folderPath);
+    console.log(`Deleting folder: ${safePath} in container: ${containerName}`);
+
+    const fullPath = `/home/developer/workspace/soroban-hello-world/${safePath}`;
+    await execAsync(
+      `docker exec -u developer ${containerName} rm -rf ${escapeShellArg(fullPath)}`,
+      { timeout: 5000 }
+    );
+    console.log('Folder deleted successfully');
+    return { success: true, message: 'Folder deleted' };
+  } catch (error: any) {
+    console.error('Docker error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete folder'
+    };
+  }
+} 
