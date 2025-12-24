@@ -193,12 +193,13 @@ export async function deployContract(userId: string){
     
     const {stdout, stderr} = await execAsync(
       `docker exec -u developer -w /home/developer/workspace/soroban-hello-world ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release && stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world"`,
-      { timeout: 300000 } // 5 minute timeout for building
-    )
-    console.log('Contract deployed:', stdout);
-    if (stderr) {
-      console.error('Contract deployment error:', stderr);
-    }
+      { timeout: 300000, maxBuffer: 10 * 1024 * 1024 }
+    );
+    
+    // Just log the output as-is
+    console.log(stdout);
+    console.log(stderr);
+    
     return {
       success: true,
       stdout,
@@ -206,6 +207,8 @@ export async function deployContract(userId: string){
     };
   } catch (error: any) {
     console.error('Docker error:', error);
+    console.log(error.stdout || '');
+    console.log(error.stderr || '');
     return {
       success: false,
       error: error.message || 'Failed to deploy contract',
