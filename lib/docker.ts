@@ -294,6 +294,7 @@ export async function getFileContent(userId: string, filePath: string) {
     console.log(`Reading file: ${safePath} from container: ${containerName}`);
 
     const fullPath = `/home/developer/workspace/soroban-hello-world/${safePath}`;
+    console.log(`Full path for reading: ${fullPath}`);
 
     // Verify file exists first
     const { stdout: fileExists } = await execAsync(
@@ -301,7 +302,8 @@ export async function getFileContent(userId: string, filePath: string) {
     );
 
     if (fileExists.trim() !== 'exists') {
-      throw new Error('File does not exist');
+      console.error(`File not found: ${fullPath}`);
+      throw new Error(`File does not exist at ${fullPath}`);
     }
 
     // Read file from container
@@ -328,6 +330,25 @@ export async function saveFileContent(userId: string, filePath: string, content:
     console.log(`Saving file: ${safePath} to container: ${containerName}`);
 
     const fullPath = `/home/developer/workspace/soroban-hello-world/${safePath}`;
+    console.log(`Full path: ${fullPath}`);
+
+    // First verify the file exists
+    const { stdout: fileCheck } = await execAsync(
+      `docker exec ${containerName} test -f ${fullPath} && echo "exists" || echo "missing"`
+    );
+    
+    if (fileCheck.trim() === 'missing') {
+      console.error(`File not found at: ${fullPath}`);
+      // Try to show what files exist
+      const { stdout: dirContents } = await execAsync(
+        `docker exec ${containerName} find /home/developer/workspace/soroban-hello-world -name "lib.rs" 2>/dev/null || true`
+      );
+      console.log('Found lib.rs at:', dirContents);
+      return {
+        success: false,
+        error: `File not found at ${fullPath}. Try refreshing the file tree.`
+      };
+    }
 
     // Escape content for shell - use base64 encoding to avoid shell escaping issues
     const base64Content = Buffer.from(content).toString('base64');
@@ -337,18 +358,6 @@ export async function saveFileContent(userId: string, filePath: string, content:
       `docker exec -u developer ${containerName} sh -c "echo ${escapeShellArg(base64Content)} | base64 -d > ${fullPath}"`,
       { timeout: 10000 }
     );
-
-    // Verify file was written
-    const { stdout: verifySize } = await execAsync(
-      `docker exec ${containerName} wc -c < ${fullPath}`
-    );
-
-    const writtenSize = parseInt(verifySize.trim());
-    const expectedSize = content.length;
-
-    if (writtenSize !== expectedSize) {
-      console.warn(`Size mismatch: written ${writtenSize}, expected ${expectedSize}`);
-    }
 
     console.log('File saved successfully');
     return { success: true, message: 'File saved' };
