@@ -5,7 +5,7 @@ const EditorComponent = () => {
     return (
         <div className="flex h-screen w-full bg-black dark:bg-black">
            {/* Left Side */}
-        <div className="w-[30%] p-4 dark:bg-black">
+        <div className="w-[36%] p-4 dark:bg-black">
                 <LeftComponent />
              </div>                                   
            {/* Right Side */}
