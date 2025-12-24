@@ -163,7 +163,8 @@ export async function createAccount(userId: string) {
     console.log(`Creating account in container: ${containerName}`);
     
     const {stdout, stderr} = await execAsync(
-      `docker exec -u developer ${containerName} sh -c "stellar keys generate darshan --network testnet --fund"`,
+      `docker exec -u developer -w ${containerName} sh -c "stellar keys generate darshan --network testnet --fund"`,
+      { timeout: 30000 }
     )
     console.log('Account created:', stdout);
     if (stderr) {
