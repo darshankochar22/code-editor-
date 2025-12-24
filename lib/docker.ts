@@ -163,7 +163,7 @@ export async function createAccount(userId: string) {
     console.log(`Creating account in container: ${containerName}`);
     
     const {stdout, stderr} = await execAsync(
-      `docker exec -u developer -w ${containerName} sh -c "stellar keys generate darshan --network testnet --fund"`,
+      `docker exec -u developer ${containerName} sh -c "stellar keys generate darshan --network testnet --fund"`,
       { timeout: 30000 }
     )
     console.log('Account created:', stdout);
@@ -192,11 +192,8 @@ export async function deployContract(userId: string){
     console.log(`Deploying contract in container: ${containerName}`);
     
     const {stdout, stderr} = await execAsync(
-      `docker exec -u developer ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release &&stellar contract deploy \
-               --wasm target/wasm32v1-none/release/hello_world.wasm \
-               --source-account darshan \
-               --network testnet \
-               --alias hello_world"`
+      `docker exec -u developer -w /home/developer/workspace/soroban-hello-world ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release && stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world"`,
+      { timeout: 300000 } // 5 minute timeout for building
     )
     console.log('Contract deployed:', stdout);
     if (stderr) {
