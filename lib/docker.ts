@@ -259,21 +259,24 @@ export async function getContainerFiles(userId: string) {
       };
     }
 
-    // Get files from container - find all files recursively, exclude build artifacts
+    // Get files from container - find all files recursively
     const { stdout } = await execAsync(
-      `docker exec ${containerName} sh -c "find ${projectPath} -type f -not -path '*/target/*' -not -path '*/.git/*' -not -name 'Cargo.lock' 2>/dev/null || true"`,
+      `docker exec ${containerName} find ${projectPath} -type f 2>/dev/null`,
       { timeout: 10000 }
     );
 
-    const files = stdout
+    // Parse the output and filter out unwanted paths
+    const allFiles = stdout
       .trim()
       .split('\n')
       .filter(f => f.length > 0)
       .map(f => f.replace(`${projectPath}/`, ''))
-      .filter(f => f.length > 0);
+      // Filter out build artifacts
+      .filter(f => !f.includes('/target/') && !f.includes('/.git/') && f !== 'Cargo.lock');
 
-    console.log(`Found ${files.length} files`);
-    return { success: true, files };
+    console.log(`Found ${allFiles.length} files in ${projectPath}`);
+    console.log('Files list:', allFiles);
+    return { success: true, files: allFiles };
   } catch (error: any) {
     console.error('Docker error:', error);
     return {
