@@ -191,7 +191,7 @@ export async function deployContract(userId: string){
     console.log(`Deploying contract in container: ${containerName}`);
     
     const {stdout, stderr} = await execAsync(
-      `docker exec -u developer ${containerName} sh -c "stellar contract deploy \
+      `docker exec -u developer ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release &&stellar contract deploy \
                --wasm target/wasm32v1-none/release/hello_world.wasm \
                --source-account darshan \
                --network testnet \
