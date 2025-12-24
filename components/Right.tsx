@@ -844,6 +844,7 @@ export default function Right() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
+        handleSave();
       }
 
       if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
@@ -905,6 +906,15 @@ export default function Right() {
             </button>
           )}
 
+          {openFile && (
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
+            >
+              {isSaving ? 'Saving...' : 'Save (⌘S)'}
+            </button>
+          )}
           <button
             onClick={handleCreateContainer}
             disabled={containerLoading}
