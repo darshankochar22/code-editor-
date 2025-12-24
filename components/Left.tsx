@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Wrench, Activity, ThumbsUp, ThumbsDown, Copy, MoreHorizontal } from 'lucide-react';
+import { Wrench, Activity, ThumbsUp, ThumbsDown, Copy, MoreHorizontal, Send } from 'lucide-react';
 
 const LeftComponent = () => {
   const [messages, setMessages] = useState([
@@ -33,16 +33,23 @@ const LeftComponent = () => {
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen text-white dark:bg-black">
+    <div className="flex flex-col h-screen text-white bg-black relative">
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32 w-full">
         {messages.map((message) => (
           <div key={message.id} className="space-y-3">
             {message.type === 'user' ? (
               // User Message
               <div className="flex justify-end">
-                <div className="bg-[#171717]  text-white px-4 py-2 rounded-2xl max-w-[80%]">
+                <div className="bg-[#171717] text-white px-4 py-2 rounded-2xl max-w-[80%]">
                   {message.content}
                 </div>
               </div>
@@ -90,7 +97,7 @@ const LeftComponent = () => {
                 )}
 
                 {/* Message Content */}
-                <div className="bg-[#171717]  rounded-xl p-4">
+                <div className="bg-[#171717] rounded-xl p-4">
                   <p className="text-white leading-relaxed">{message.content}</p>
                 </div>
 
@@ -125,6 +132,50 @@ const LeftComponent = () => {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Fixed Input Box at Bottom - Claude Style */}
+      <div className="absolute bottom-0 left-0 right-0 bg-black p-4">
+        <div className="w-full">
+          <div className="relative flex items-end gap-2 bg-[#2f2f2f] rounded-3xl px-4 py-3 shadow-lg">
+            {/* Plus Button */}
+            <button className="p-2 hover:bg-[#3f3f3f] rounded-lg transition-colors flex-shrink-0">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+
+            {/* Textarea */}
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Message AI..."
+              className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none resize-none max-h-40 min-h-[24px] py-1"
+              rows={1}
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#4f4f4f #2f2f2f'
+              }}
+            />
+
+            {/* Send Button */}
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="p-2 bg-white text-black rounded-lg hover:bg-gray-200 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Helper Text */}
+          <p className="text-center text-xs text-gray-500 mt-2">
+            Claude is AI and can make mistakes. Please double-check responses.
+          </p>
+        </div>
       </div>
     </div>
   );
