@@ -48,7 +48,6 @@ export default function Right() {
   const handleDeployContract = async () => {
     setContractLoading(true);
     setError(null);
-
     try {
       const response = await fetch('/api/docker', {
         method: 'POST',
@@ -56,10 +55,16 @@ export default function Right() {
         body: JSON.stringify({ action: 'deployContract', userId })
       });
       const data = await response.json();
+      
       if (data.success) {
-        console.log('Contract deployed:', data.message);
-       // await loadFiles();
+        console.log('Contract deployed successfully!');
+        console.log('=== Deployment Output ===');
+        console.log(data.output || data.stdout || data.stderr);
+        // await loadFiles();
       } else {
+        console.error('Deployment failed');
+        console.error('Error:', data.error);
+        console.error('Output:', data.output || data.stderr);
         setError(`Failed to deploy contract: ${data.error}`);
       }
     } catch (error) {

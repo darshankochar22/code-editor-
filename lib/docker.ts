@@ -196,28 +196,38 @@ export async function deployContract(userId: string){
       { timeout: 300000, maxBuffer: 10 * 1024 * 1024 }
     );
     
-    // Just log the output as-is
-    console.log(stdout);
-    console.log(stderr);
+    // Log both outputs
+    console.log('=== STDOUT ===');
+    console.log(stdout || '(empty)');
+    console.log('=== STDERR ===');
+    console.log(stderr || '(empty)');
+    
+    // Combine stdout and stderr for the output
+    const output = (stdout || '') + (stderr || '');
     
     return {
       success: true,
+      message: 'Contract deployed successfully',
+      output: output,  // Send full terminal output
       stdout,
       stderr
     };
   } catch (error: any) {
     console.error('Docker error:', error);
-    console.log(error.stdout || '');
-    console.log(error.stderr || '');
+    console.log('=== ERROR STDOUT ===');
+    console.log(error.stdout || '(empty)');
+    console.log('=== ERROR STDERR ===');
+    console.log(error.stderr || '(empty)');
+    
     return {
       success: false,
       error: error.message || 'Failed to deploy contract',
+      output: (error.stdout || '') + (error.stderr || ''),
       stdout: error.stdout || '',
       stderr: error.stderr || ''
     };
   }
 }
-
 
 export async function getContainerFiles(userId: string) {
   try {
