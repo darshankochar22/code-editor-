@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { FilePlus, FolderPlus, X, Trash2 } from 'lucide-react';
+import { isConnected, setAllowed, getAddress } from "@stellar/freighter-api";
 
 type MonacoType = any;
 
@@ -37,6 +38,88 @@ export default function Right() {
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedDeltaRef = useRef(0);
+  const [connected, setConnected] = useState(false);
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+
+  // Check if Freighter wallet is available
+  const isFreighterAvailable = () => {
+    if (typeof window === 'undefined') return false;
+    return window.freighter !== undefined;
+  };
+
+  // Check initial connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (typeof window === 'undefined') return;
+      
+      try {
+        if (!isFreighterAvailable()) {
+          console.log('Freighter not installed');
+          return;
+        }
+
+        const alreadyConnected = await isConnected();
+        if (alreadyConnected) {
+          const key = await getPublicKey();
+          setConnected(true);
+          setPublicKey(key);
+          console.log('Already connected to wallet:', key);
+        }
+      } catch (err) {
+        console.log('Not connected to wallet:', err);
+      }
+    };
+  
+    checkConnection();
+  }, []);
+
+
+  const connectWallet = async () => {
+    try {
+      setError(null);
+      
+      // 1. Verify browser environment
+      if (typeof window === 'undefined') return;
+  
+      // 2. Use isConnected() to check for the extension
+      const connectionStatus = await isConnected();
+      if (!connectionStatus.isConnected) {
+        setError('Freighter wallet not found. Please install it from freighter.app');
+        window.open('https://www.freighter.app/', '_blank');
+        return;
+      }
+  
+      // 3. Use setAllowed() to request access (replaces getPublicKey for connection)
+      // This is the standard function to trigger the "Allow List" popup
+      const access = await setAllowed();
+      
+      if (access.isAllowed) {
+        // 4. Retrieve the actual address once allowed
+        const { address, error } = await getAddress();
+        
+        if (address) {
+          setPublicKey(address);
+          setConnected(true);
+        } else {
+          throw new Error(error || 'Failed to retrieve address');
+        }
+      } else {
+        throw new Error('User declined access');
+      }
+    } catch (err: any) {
+      console.error('Connection error:', err);
+      setError(err.message || 'Failed to connect wallet.');
+      setConnected(false);
+    }
+  };
+  
+
+  const disconnectWallet = () => {
+    setConnected(false);
+    setPublicKey(null);
+    setError(null);
+    console.log('Wallet disconnected');
+  };
 
   // Load file tree from Docker container
   async function loadFiles() {
@@ -241,7 +324,6 @@ export default function Right() {
       
       if (data.success) {
         console.log('File saved successfully');
-        // Show brief success indicator
         setTimeout(() => setError(null), 2000);
       } else {
         setError(`Failed to save: ${data.error}`);
@@ -289,10 +371,8 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        // Reload file tree
         await loadFiles();
         
-        // If it's a file, open it
         if (creatingItem.type === 'file') {
           const newFile: FileNode = {
             name: fileName,
@@ -302,7 +382,6 @@ export default function Right() {
           setFileContents(prev => new Map(prev).set(fullPath, ''));
           setOpenFile(newFile);
         } else {
-          // Expand the new folder
           setExpandedFolders(prev => new Set(prev).add(fullPath));
         }
         
@@ -344,17 +423,14 @@ export default function Right() {
       
       if (data.success) {
         console.log('File deleted:', filePath);
-        // Close the file if it's currently open
         if (openFile?.path === filePath) {
           setOpenFile(null);
         }
-        // Remove from file contents
         setFileContents(prev => {
           const newContents = new Map(prev);
           newContents.delete(filePath);
           return newContents;
         });
-        // Reload file tree
         await loadFiles();
       } else {
         setError(`Failed to delete file: ${data.error}`);
@@ -385,17 +461,14 @@ export default function Right() {
       
       if (data.success) {
         console.log('Folder deleted:', folderPath);
-        // Close any files in this folder
         if (openFile?.path.startsWith(folderPath)) {
           setOpenFile(null);
         }
-        // Remove folder from expanded list
         setExpandedFolders(prev => {
           const newExpanded = new Set(prev);
           newExpanded.delete(folderPath);
           return newExpanded;
         });
-        // Reload file tree
         await loadFiles();
       } else {
         setError(`Failed to delete folder: ${data.error}`);
@@ -421,7 +494,6 @@ export default function Right() {
       
       if (data.success) {
         console.log('Container created:', data.message);
-        // Reload files after container creation
         await loadFiles();
       } else {
         setError(`Failed to create container: ${data.error}`);
@@ -453,7 +525,6 @@ export default function Right() {
       
       if (data.success) {
         console.log('Container deleted:', data.message);
-        // Clear state
         setFiles([]);
         setOpenFile(null);
         setFileContents(new Map());
@@ -488,7 +559,6 @@ export default function Right() {
     type TreeNode = FileNode & { _children?: { [key: string]: TreeNode } };
     const root: { [key: string]: TreeNode } = {};
     
-    // Build tree structure
     flatFiles.forEach(filePath => {
       const parts = filePath.split('/').filter(p => p.length > 0);
       let currentLevel = root;
@@ -507,8 +577,7 @@ export default function Right() {
           };
         }
         
-        // Move to next level for folders (not files)
-        if (!parts[index + 1]) return; // No more parts
+        if (!parts[index + 1]) return;
         
         const node = currentLevel[part];
         if (!node._children) {
@@ -518,7 +587,6 @@ export default function Right() {
       });
     });
     
-    // Convert tree structure to sorted array
     function convertToArray(nodeMap: { [key: string]: TreeNode }): FileNode[] {
       return Object.values(nodeMap)
         .sort((a, b) => {
@@ -590,9 +658,7 @@ export default function Right() {
               )}
               <span className="text-gray-300 text-sm flex-1">{node.name}</span>
               
-              {/* Hover actions */}
               <div className="hidden group-hover:flex items-center gap-1">
-                {/* Create buttons for folders */}
                 {node.type === 'folder' && (
                   <>
                     <button
@@ -618,7 +684,6 @@ export default function Right() {
                   </>
                 )}
                 
-                {/* Delete button for both files and folders */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -636,7 +701,6 @@ export default function Right() {
               </div>
             </div>
             
-            {/* Show input for creating new item in this folder */}
             {node.type === 'folder' && 
              creatingItem && 
              creatingItem.parentPath === node.path && 
@@ -679,7 +743,6 @@ export default function Right() {
           </div>
         ))}
         
-        {/* Show input at root level if creating in root */}
         {depth === 0 && creatingItem && creatingItem.parentPath === parentPath && (
           <div 
             className="flex items-center gap-2 px-2 py-1 bg-[#1e1e1e]"
@@ -721,7 +784,6 @@ export default function Right() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        //handleSave();
       }
 
       if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
@@ -761,6 +823,28 @@ export default function Right() {
       <div className="h-10 bg-[#171717] border-b border-[#252525] flex items-center justify-between px-3">
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">User: {userId}</span>
+          
+          {connected ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-green-400">
+                {publicKey?.slice(0, 4)}...{publicKey?.slice(-4)}
+              </span>
+              <button
+                onClick={disconnectWallet}
+                className="text-xs px-3 py-1 rounded bg-red-900/30 hover:bg-red-900/50 text-white transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              className="text-xs px-3 py-1 rounded bg-blue-900/30 hover:bg-blue-900/50 text-white transition-colors"
+            >
+              Connect Wallet
+            </button>
+          )}
+
           <button
             onClick={handleCreateContainer}
             disabled={containerLoading}
@@ -781,6 +865,12 @@ export default function Right() {
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
           >
             {isLoading ? 'Loading...' : 'Refresh'}
+          </button>
+          <button
+            disabled={isLoading}
+            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
+          >
+            {isLoading ? 'Deploying...' : 'Deploy'}
           </button>
         </div>
         <div className="text-xs text-gray-500 flex items-center gap-2">

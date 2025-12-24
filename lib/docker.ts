@@ -387,3 +387,29 @@ export async function deleteFolder(userId: string, folderPath: string) {
     };
   }
 } 
+
+
+export async function deployContract(userId: string) {
+  try {
+    const containerName = `user${userId}`;
+    console.log(`Deploying contract in container: ${containerName}`);
+
+    const { stdout, stderr } = await execAsync(
+      `docker exec -u developer ${containerName} sh -c "stellar contract build && stellar contract deploy"`,
+      { timeout: 60000 }
+    );
+    return {
+      success: true,
+      stdout,
+      stderr
+    };
+  } catch (error: any) {
+    console.error('Docker error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to deploy contract',
+      stdout: error.stdout || '',
+      stderr: error.stderr || ''
+    };
+  }
+}
