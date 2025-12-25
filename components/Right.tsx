@@ -48,7 +48,24 @@ export default function Right() {
   const [messageCount, setMessageCount] = useState(0);
   const [terminalHeight, setTerminalHeight] = useState(250);
 
-  // Intercept console methods
+  // ============================================================================
+  // HELPER FUNCTION: Log to Terminal
+  // ============================================================================
+  const logToTerminal = (message: string, type: 'log' | 'error' | 'warn' | 'info' = 'log') => {
+    const now = new Date();
+    const timestamp = now.toLocaleTimeString();
+    setLogs(prev => [...prev, {
+      id: messageCount,
+      message,
+      timestamp,
+      type
+    }]);
+    setMessageCount(prev => prev + 1);
+  };
+
+  // ============================================================================
+  // Intercept console methods (KEEP THIS - logs browser console to terminal)
+  // ============================================================================
   useEffect(() => {
     const originalLog = console.log;
     const originalError = console.error;
@@ -100,9 +117,15 @@ export default function Right() {
     };
   }, [messageCount]);
 
+  // ============================================================================
+  // DEPLOY CONTRACT - UPDATED TO LOG VM OUTPUT
+  // ============================================================================
   const handleDeployContract = async () => {
     setContractLoading(true);
     setError(null);
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal('Starting contract deployment...', 'info');
+    
     try {
       const response = await fetch('/api/docker', {
         method: 'POST',
@@ -112,30 +135,53 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('Contract deployed successfully!');
-        console.log('=== Deployment Output ===');
-        console.log(data.output || data.stdout || data.stderr);
-        // await loadFiles();
+        logToTerminal('✓ Contract deployed successfully!', 'log');
+        logToTerminal('=== Deployment Output ===', 'info');
+        
+        // Log all output from the VM
+        const output = data.output || data.stdout || '';
+        const errorOutput = data.stderr || '';
+        
+        if (output) {
+          output.split('\n').forEach((line: string) => {
+            if (line.trim()) logToTerminal(line, 'log');
+          });
+        }
+        
+        if (errorOutput) {
+          errorOutput.split('\n').forEach((line: string) => {
+            if (line.trim()) logToTerminal(line, 'warn');
+          });
+        }
       } else {
-        console.error('Deployment failed');
-        console.error('Error:', data.error);
-        console.error('Output:', data.output || data.stderr);
+        logToTerminal('✗ Deployment failed', 'error');
+        logToTerminal(`Error: ${data.error}`, 'error');
+        
+        const errorDetails = data.output || data.stderr || '';
+        if (errorDetails) {
+          errorDetails.split('\n').forEach((line: string) => {
+            if (line.trim()) logToTerminal(line, 'error');
+          });
+        }
+        
         setError(`Failed to deploy contract: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to deploy contract:', error);
+      logToTerminal(`✗ Failed to deploy contract: ${error}`, 'error');
       setError('Failed to deploy contract');
     } finally {
       setContractLoading(false);
     }
   }
-  // Check if Freighter wallet is available
+
+  // ============================================================================
+  // Freighter Wallet Functions
+  // ============================================================================
   const isFreighterAvailable = () => {
     if (typeof window === 'undefined') return false;
     return window.freighter !== undefined;
   };
 
-  // Check initial connection status
   useEffect(() => {
     const checkConnection = async () => {
       if (typeof window === 'undefined') return;
@@ -161,54 +207,57 @@ export default function Right() {
     checkConnection();
   }, []);
 
-
+  // ============================================================================
+  // CONNECT WALLET - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   const connectWallet = async () => {
     try {
       setError(null);
+      logToTerminal('Connecting to Freighter wallet...', 'info');
       
-      // 1. Verify browser environment
       if (typeof window === 'undefined') return;
   
-      // 2. Use isConnected() to check for the extension
       const connectionStatus = await isConnected();
       if (!connectionStatus.isConnected) {
+        logToTerminal('✗ Freighter wallet not found', 'error');
         setError('Freighter wallet not found. Please install it from freighter.app');
         window.open('https://www.freighter.app/', '_blank');
         return;
       }
-      // 3. Use setAllowed() to request access (replaces getPublicKey for connection)
-      // This is the standard function to trigger the "Allow List" popup
+      
       const access = await setAllowed();
       
       if (access.isAllowed) {
-        // 4. Retrieve the actual address once allowed
         const { address, error } = await getAddress();
         
         if (address) {
           setPublicKey(address);
           setConnected(true);
+          logToTerminal(`✓ Wallet connected: ${address.slice(0, 4)}...${address.slice(-4)}`, 'log');
         } else {
           throw new Error(error || 'Failed to retrieve address');
         }
       } else {
+        logToTerminal('✗ User declined wallet access', 'warn');
         throw new Error('User declined access');
       }
     } catch (err: any) {
-      console.error('Connection error:', err);
+      logToTerminal(`✗ Connection error: ${err.message}`, 'error');
       setError(err.message || 'Failed to connect wallet.');
       setConnected(false);
     }
   };
   
-
   const disconnectWallet = () => {
     setConnected(false);
     setPublicKey(null);
     setError(null);
-    console.log('Wallet disconnected');
+    logToTerminal('✓ Wallet disconnected', 'log');
   };
 
-  // Load file tree from Docker container
+  // ============================================================================
+  // LOAD FILES
+  // ============================================================================
   async function loadFiles(preserveExpanded = true) {
     setIsLoading(true);
     setError(null);
@@ -224,7 +273,6 @@ export default function Right() {
         const tree = buildFileTree(data.files);
         setFiles(tree);
         
-        // Preserve expanded folders if refreshing, otherwise auto-expand common folders
         if (!preserveExpanded) {
           const commonFolders = ['src', 'contracts', 'soroban-hello-world'];
           setExpandedFolders(new Set(commonFolders));
@@ -242,13 +290,13 @@ export default function Right() {
       }
     }
 
-  // Load files on mount and when userId changes
   useEffect(() => {
-    loadFiles(false); // false = don't preserve expanded, use default expand
+    loadFiles(false);
   }, [userId]);
 
-
-  // Remove Monaco blue borders
+  // ============================================================================
+  // Monaco Editor Setup (KEEP AS IS)
+  // ============================================================================
   useEffect(() => {
     const styleId = 'monaco-custom-styles';
     if (!document.getElementById(styleId)) {
@@ -324,7 +372,6 @@ export default function Right() {
     editorRef.current = editorInstance;
     editorInstance.focus();
 
-    // Configure language support
     if (monaco && monaco.languages) {
       monaco.languages.typescript?.typescriptDefaults?.setCompilerOptions({
         target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -340,7 +387,6 @@ export default function Right() {
       });
     }
 
-    // Add mouse wheel zoom
     if (containerRef.current) {
       containerRef.current.addEventListener('wheel', handleMouseWheel, { passive: false });
     }
@@ -363,7 +409,6 @@ export default function Right() {
 
   async function handleFileClick(file: FileNode) {
     if (file.type === 'file') {
-      // Check if already loaded
       if (fileContents.has(file.path)) {
         setOpenFile(file);
         return;
@@ -391,11 +436,15 @@ export default function Right() {
     }
   }
 
+  // ============================================================================
+  // SAVE FILE - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function handleSave() {
     if (!openFile) return;
 
     setIsSaving(true);
     setError(null);
+    logToTerminal(`Saving ${openFile.name}...`, 'info');
     
     try {
       const content = fileContents.get(openFile.path) || '';
@@ -413,13 +462,14 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('File saved successfully');
+        logToTerminal(`✓ ${openFile.name} saved successfully`, 'log');
         setTimeout(() => setError(null), 2000);
       } else {
+        logToTerminal(`✗ Failed to save ${openFile.name}: ${data.error}`, 'error');
         setError(`Failed to save: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to save file:', error);
+      logToTerminal(`✗ Failed to save ${openFile.name}: ${error}`, 'error');
       setError('Failed to save file');
     } finally {
       setIsSaving(false);
@@ -436,6 +486,9 @@ export default function Right() {
     setNewItemName('');
   }
 
+  // ============================================================================
+  // CREATE FILE/FOLDER - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function confirmCreateItem() {
     if (!creatingItem || !newItemName.trim()) {
       setCreatingItem(null);
@@ -446,6 +499,9 @@ export default function Right() {
     const fullPath = creatingItem.parentPath 
       ? `${creatingItem.parentPath}/${fileName}`
       : fileName;
+
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal(`Creating ${creatingItem.type}: ${fullPath}`, 'info');
 
     try {
       const response = await fetch('/api/docker', {
@@ -461,6 +517,7 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
+        logToTerminal(`✓ ${creatingItem.type} created: ${fullPath}`, 'log');
         await loadFiles();
         
         if (creatingItem.type === 'file') {
@@ -478,11 +535,12 @@ export default function Right() {
         setCreatingItem(null);
         setNewItemName('');
       } else {
+        logToTerminal(`✗ Failed to create ${creatingItem.type}: ${data.error}`, 'error');
         setError(`Failed to create ${creatingItem.type}: ${data.error}`);
         setCreatingItem(null);
       }
     } catch (error) {
-      console.error(`Failed to create ${creatingItem.type}:`, error);
+      logToTerminal(`✗ Failed to create ${creatingItem.type}: ${error}`, 'error');
       setError(`Failed to create ${creatingItem.type}`);
       setCreatingItem(null);
     }
@@ -493,10 +551,16 @@ export default function Right() {
     setNewItemName('');
   }
 
+  // ============================================================================
+  // DELETE FILE - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function handleDeleteFile(filePath: string) {
     if (!confirm(`Delete file: ${filePath}?`)) {
       return;
     }
+
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal(`Deleting ${filePath}...`, 'info');
 
     try {
       const response = await fetch('/api/docker', {
@@ -512,7 +576,7 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('File deleted:', filePath);
+        logToTerminal(`✓ File deleted: ${filePath}`, 'log');
         if (openFile?.path === filePath) {
           setOpenFile(null);
         }
@@ -523,18 +587,25 @@ export default function Right() {
         });
         await loadFiles();
       } else {
+        logToTerminal(`✗ Failed to delete file: ${data.error}`, 'error');
         setError(`Failed to delete file: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to delete file:', error);
+      logToTerminal(`✗ Failed to delete file: ${error}`, 'error');
       setError('Failed to delete file');
     }
   }
 
+  // ============================================================================
+  // DELETE FOLDER - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function handleDeleteFolder(folderPath: string) {
     if (!confirm(`Delete folder and all contents: ${folderPath}?`)) {
       return;
     }
+
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal(`Deleting folder ${folderPath}...`, 'info');
 
     try {
       const response = await fetch('/api/docker', {
@@ -550,7 +621,7 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('Folder deleted:', folderPath);
+        logToTerminal(`✓ Folder deleted: ${folderPath}`, 'log');
         if (openFile?.path.startsWith(folderPath)) {
           setOpenFile(null);
         }
@@ -561,17 +632,23 @@ export default function Right() {
         });
         await loadFiles();
       } else {
+        logToTerminal(`✗ Failed to delete folder: ${data.error}`, 'error');
         setError(`Failed to delete folder: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to delete folder:', error);
+      logToTerminal(`✗ Failed to delete folder: ${error}`, 'error');
       setError('Failed to delete folder');
     }
   }
 
+  // ============================================================================
+  // CREATE CONTAINER - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function handleCreateContainer() {
     setContainerLoading(true);
     setError(null);
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal('Creating Docker container...', 'info');
     
     try {
       const response = await fetch('/api/docker', {
@@ -583,19 +660,31 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('Container created:', data.message);
+        logToTerminal(`✓ ${data.message}`, 'log');
+        
+        // Log any setup output
+        if (data.output) {
+          data.output.split('\n').forEach((line: string) => {
+            if (line.trim()) logToTerminal(line, 'log');
+          });
+        }
+        
         await loadFiles();
       } else {
+        logToTerminal(`✗ Failed to create container: ${data.error}`, 'error');
         setError(`Failed to create container: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to create container:', error);
+      logToTerminal(`✗ Failed to create container: ${error}`, 'error');
       setError('Failed to create container');
     } finally {
       setContainerLoading(false);
     }
   }
 
+  // ============================================================================
+  // DELETE CONTAINER - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function handleDeleteContainer() {
     if (!confirm(`Delete container for user ${userId}?`)) {
       return;
@@ -603,6 +692,8 @@ export default function Right() {
 
     setContainerLoading(true);
     setError(null);
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal('Deleting Docker container...', 'info');
     
     try {
       const response = await fetch('/api/docker', {
@@ -614,24 +705,30 @@ export default function Right() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('Container deleted:', data.message);
+        logToTerminal(`✓ ${data.message}`, 'log');
         setFiles([]);
         setOpenFile(null);
         setFileContents(new Map());
       } else {
+        logToTerminal(`✗ Failed to delete container: ${data.error}`, 'error');
         setError(`Failed to delete container: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to delete container:', error);
+      logToTerminal(`✗ Failed to delete container: ${error}`, 'error');
       setError('Failed to delete container');
     } finally {
       setContainerLoading(false);
     }
   }
 
+  // ============================================================================
+  // CREATE ACCOUNT - UPDATED TO LOG TO TERMINAL
+  // ============================================================================
   async function handleCreateAccount() {
     setAccountLoading(true);
     setError(null);
+    setTerminalOpen(true); // Auto-open terminal
+    logToTerminal('Creating Stellar account...', 'info');
 
     try {
       const response = await fetch('/api/docker', {
@@ -641,13 +738,27 @@ export default function Right() {
       });
       const data = await response.json();
       if (data.success) {
-        console.log('Account created:', data.message);
-       // await loadFiles();
+        logToTerminal('✓ Account created successfully!', 'log');
+        
+        // Log stdout from VM
+        if (data.stdout) {
+          data.stdout.split('\n').forEach((line: string) => {
+            if (line.trim()) logToTerminal(line, 'log');
+          });
+        }
+        
+        // Log stderr from VM as warnings
+        if (data.stderr) {
+          data.stderr.split('\n').forEach((line: string) => {
+            if (line.trim()) logToTerminal(line, 'warn');
+          });
+        }
       } else {
+        logToTerminal(`✗ Failed to create account: ${data.error}`, 'error');
         setError(`Failed to create account: ${data.error}`);
       }
     } catch (error) {
-      console.error('Failed to create account:', error);
+      logToTerminal(`✗ Failed to create account: ${error}`, 'error');
       setError('Failed to create account');
     } finally {
       setAccountLoading(false);
