@@ -45,7 +45,7 @@ export default function Right() {
   const [contractLoading, setContractLoading] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [logs, setLogs] = useState<LogMessage[]>([]);
-  const [messageCount, setMessageCount] = useState(0);
+  const messageCountRef = useRef(0);
   const [terminalHeight, setTerminalHeight] = useState(250);
 
   // ============================================================================
@@ -55,12 +55,11 @@ export default function Right() {
     const now = new Date();
     const timestamp = now.toLocaleTimeString();
     setLogs(prev => [...prev, {
-      id: messageCount,
+      id: messageCountRef.current++,
       message,
       timestamp,
       type
     }]);
-    setMessageCount(prev => prev + 1);
   };
 
   // ============================================================================
@@ -81,12 +80,11 @@ export default function Right() {
           : JSON.stringify(message, null, 2);
 
       setLogs(prev => [...prev, {
-        id: messageCount,
+        id: messageCountRef.current++,
         message: formattedMessage,
         timestamp,
         type
       }]);
-      setMessageCount(prev => prev + 1);
     };
 
     console.log = (...args) => {
@@ -115,7 +113,7 @@ export default function Right() {
       console.warn = originalWarn;
       console.info = originalInfo;
     };
-  }, [messageCount]);
+  }, []);
 
   // ============================================================================
   // DEPLOY CONTRACT - UPDATED TO LOG VM OUTPUT
