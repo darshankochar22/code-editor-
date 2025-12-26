@@ -1106,8 +1106,8 @@ export default function Right() {
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
           >
             {containerLoading ? 'Loading...' : 'Delete Container'}
-      { /*    </button>
-          <button
+          </button>
+          { /*     <button
             onClick={() => loadFiles(true)}
             disabled={isLoading}
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
