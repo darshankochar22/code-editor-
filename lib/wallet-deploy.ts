@@ -1,15 +1,19 @@
-import StellarSdk from 'stellar-sdk';
-import { 
-  signTransaction, 
-  isConnected, 
-  setAllowed, 
-  getAddress 
-} from '@stellar/freighter-api';
+import * as StellarSdk from "@stellar/stellar-sdk";
+import { rpc as StellarRpc } from "@stellar/stellar-sdk";
+import {
+  signTransaction,
+  isConnected,
+  setAllowed,
+  getAddress,
+} from "@stellar/freighter-api";
 
-const { xdr } = StellarSdk;
+// Configure network using the imported SDK
 const NETWORK_PASSPHRASE = StellarSdk.Networks.TESTNET;
-const SERVER_URL = 'https://soroban-testnet.stellar.org';
-const server = new StellarSdk.Server(SERVER_URL);
+const SOROBAN_URL = "https://soroban-testnet.stellar.org";
+
+// Initialize server using the RPC module
+const server = new StellarRpc.Server(SOROBAN_URL);
+
 
 export async function deployWithWallet(userId: string, logToTerminal: (msg: string, type: string) => void) {
   try {
