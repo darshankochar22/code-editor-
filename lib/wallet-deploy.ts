@@ -86,9 +86,17 @@ export async function deployWithWallet(
       )
     );
 
+    logToTerminal(`ℹ️ Upload transaction hash: ${uploadResult.hash}`, "info");
+    logToTerminal(
+      `🔗 https://stellar.expert/explorer/testnet/tx/${uploadResult.hash}`,
+      "info"
+    );
+
     // 4. Wait for upload confirmation
     let uploadTxInfo;
     let attempts = 0;
+    logToTerminal("🌎 Submitting upload transaction...", "info");
+    
     while (attempts < 60) {
       try {
         uploadTxInfo = await server.getTransaction(uploadResult.hash);
@@ -167,22 +175,53 @@ export async function deployWithWallet(
       )
     );
 
+    logToTerminal(`ℹ️ Deploy transaction hash: ${createResult.hash}`, "info");
+    logToTerminal(
+      `🔗 https://stellar.expert/explorer/testnet/tx/${createResult.hash}`,
+      "info"
+    );
+
     // 6. Wait for final confirmation
     attempts = 0;
     let finalTxInfo;
+    logToTerminal("🌎 Submitting deploy transaction...", "info");
+    
     while (attempts < 60) {
       try {
         finalTxInfo = await server.getTransaction(createResult.hash);
         if (finalTxInfo.status === "SUCCESS") {
           // Extract contract ID from transaction result
-          const contractId = finalTxInfo.returnValue;
+          const contractIdScVal = finalTxInfo.returnValue;
           
-          logToTerminal("🎉 Contract deployed!", "log");
-          logToTerminal(`Contract ID: ${contractId}`, "log");
+          // Convert ScVal address to string
+          let contractIdStr = "unknown";
+          if (contractIdScVal) {
+            try {
+              // Try to convert Address ScVal to string
+              if (typeof contractIdScVal.address === 'function') {
+                contractIdStr = StellarSdk.Address.fromScAddress(contractIdScVal.address()).toString();
+              } else if (contractIdScVal.toString) {
+                contractIdStr = contractIdScVal.toString();
+              }
+            } catch (e) {
+              logToTerminal(`Warning: Could not parse contract ID: ${e}`, "warn");
+            }
+          }
+          
+          logToTerminal("✅ Deployed!", "log");
+          logToTerminal(`📝 Contract ID: ${contractIdStr}`, "log");
+          logToTerminal(
+            `🔗 https://stellar.expert/explorer/testnet/contract/${contractIdStr}`,
+            "info"
+          );
+          logToTerminal(
+            `🔗 https://lab.stellar.org/r/testnet/contract/${contractIdStr}`,
+            "info"
+          );
           
           return {
             success: true,
-            contractId: contractId?.toString() || "unknown",
+            contractId: contractIdStr,
             transactionHash: createResult.hash,
           };
         }
