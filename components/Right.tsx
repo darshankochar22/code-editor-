@@ -1222,29 +1222,30 @@ export default function Right({
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         {sidebarVisible && (
-        <div className="w-64 bg-[#171717] border-r border-[#252525] overflow-y-auto flex flex-col">
-          {/* Sidebar Header with Create Buttons */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#252525]">
-            <span className="text-xs text-gray-400 font-semibold uppercase">Explorer</span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => handleCreateFile('')}
-                className="p-1 hover:bg-[#252525] rounded transition-colors"
-                title="New File"
-                disabled={files.length === 0}
-              >
-                <FilePlus className="w-4 h-4 text-gray-400" />
-              </button>
-              <button
-                onClick={() => handleCreateFolder('')}
-                className="p-1 hover:bg-[#252525] rounded transition-colors"
-                title="New Folder"
-                disabled={files.length === 0}
-              >
-                <FolderPlus className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
+        <div className="w-64 bg-[#171717] border-r border-[#252525] overflow-y-auto flex flex-col sidebar-scrollbar">
+        {/* Sidebar Header with Create Buttons */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#252525]">
+          <span className="text-xs text-gray-400 font-semibold uppercase">Explorer</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleCreateFile('')}
+              className="p-1 hover:bg-[#252525] rounded transition-colors"
+              title="New File"
+              disabled={files.length === 0}
+            >
+              <FilePlus className="w-4 h-4 text-gray-400" />
+            </button>
+            <button
+              onClick={() => handleCreateFolder('')}
+              className="p-1 hover:bg-[#252525] rounded transition-colors"
+              title="New Folder"
+              disabled={files.length === 0}
+            >
+              <FolderPlus className="w-4 h-4 text-gray-400" />
+            </button>
           </div>
+        </div>
+        
           
           <div className="py-2 flex-1 overflow-y-auto">
             {isLoading ? (
