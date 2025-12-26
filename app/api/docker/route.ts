@@ -11,7 +11,7 @@ deleteFile,
 deleteFolder,
 createAccount,
 deployContract,
-executeCommand
+buildContract
 } from '@/lib/docker';
 
 export async function POST(request: Request) {
@@ -62,9 +62,9 @@ switch (action) {
     const deployContractResult = await deployContract(userId, publicKey);
     return NextResponse.json(deployContractResult);
 
-  case 'executeCommand':
-    const executeCommandResult = await executeCommand(userId, command);
-    return NextResponse.json(executeCommandResult);
+  case 'buildContract':
+    const buildContractResult = await buildContract(userId);
+    return NextResponse.json(buildContractResult);
 
   default:
     return NextResponse.json(

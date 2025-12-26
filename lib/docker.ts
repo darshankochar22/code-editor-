@@ -210,7 +210,7 @@ export async function deployContract(userId: string, publicKey?: string){
     // Note: --source-account is always required (the account that pays for deployment)
     // --sign-with-key is optional (the key used to sign the transaction)
     const deployCmd = publicKey
-      ? `stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --sign-with-key ${publicKey} --network testnet --alias hello_world`
+      ? `stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world`
       : `stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world`;
     
     const {stdout, stderr} = await execAsync(
@@ -521,3 +521,62 @@ export async function deleteFolder(userId: string, folderPath: string) {
     };
   }
 } 
+
+
+export async function buildContract(userId: string) {
+  try {
+    const containerName = `user${userId}`;
+    console.log(`Building contract in container: ${containerName}`);
+    
+    // 1. Build the contract
+    const { stdout, stderr } = await execAsync(
+      `docker exec -u developer -w /home/developer/workspace/soroban-hello-world ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release"`,
+      { timeout: 300000, maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    console.log('Build stdout:', stdout);
+    if (stderr) console.log('Build stderr:', stderr);
+
+    // 2. Get the WASM file path
+    const wasmPath = '/home/developer/workspace/soroban-hello-world/target/wasm32v1-none/release/hello_world.wasm';
+    
+    // 3. Check if WASM file exists
+    const { stdout: fileCheck } = await execAsync(
+      `docker exec ${containerName} test -f ${wasmPath} && echo "exists" || echo "missing"`
+    );
+
+    if (fileCheck.trim() !== 'exists') {
+      console.error('WASM file not found at:', wasmPath);
+      throw new Error('WASM file not found after build');
+    }
+
+    // 4. Read the WASM file and convert to base64
+    const { stdout: wasmBase64 } = await execAsync(
+      `docker exec ${containerName} cat ${wasmPath} | base64`,
+      { maxBuffer: 20 * 1024 * 1024 }
+    );
+
+    // 5. Get file size for logging
+    const { stdout: wasmSize } = await execAsync(
+      `docker exec ${containerName} wc -c < ${wasmPath}`
+    );
+
+    console.log(`WASM file built: ${wasmSize.trim()} bytes, base64 length: ${wasmBase64.length}`);
+
+    return {
+      success: true,
+      wasmBase64: wasmBase64.trim(), // The contract as base64-encoded string
+      wasmSize: parseInt(wasmSize.trim()) || 0,
+      buildOutput: stdout + (stderr || '')
+    };
+  } catch (error: any) {
+    console.error('Build error:', error);
+    return {
+      success: false,
+      error: error.message,
+      stdout: error.stdout || '',
+      stderr: error.stderr || '',
+      buildOutput: (error.stdout || '') + (error.stderr || '')
+    };
+  }
+}

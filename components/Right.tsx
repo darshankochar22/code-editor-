@@ -6,6 +6,7 @@ import type { editor } from 'monaco-editor';
 import { FilePlus, FolderPlus, X, Trash2, Terminal as TerminalIcon } from 'lucide-react';
 import { isConnected, setAllowed, getAddress } from "@stellar/freighter-api";
 import Terminal, { type LogMessage } from './Terminal';
+import { DeployButton } from './DeployButton';
 
 type MonacoType = any;
 
@@ -1127,6 +1128,7 @@ export default function Right() {
           >
             {contractLoading ? 'Loading....' : 'Deploy Contract'}
           </button>
+          <DeployButton userId={userId} onLog={logToTerminal} isConnected={connected} onConnectWallet={connectWallet} />
           <button
             onClick={() => setTerminalOpen(!terminalOpen)}
             className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] text-white transition-colors flex items-center gap-2"
