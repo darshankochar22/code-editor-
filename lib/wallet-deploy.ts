@@ -20,7 +20,7 @@ export async function deployWithWallet(userId: string, logToTerminal: (msg: stri
     logToTerminal('Starting wallet-based deployment...', 'info');
     
     // 1. Build contract
-    const buildResponse = await fetch('/api/container', {
+    const buildResponse = await fetch('/api/docker', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'buildContract', userId })
