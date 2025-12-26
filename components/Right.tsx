@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { FilePlus, FolderPlus, X, Trash2, Terminal as TerminalIcon } from 'lucide-react';
+import { FilePlus, FolderPlus, X, Trash2 } from 'lucide-react';
 import { isConnected, setAllowed, getAddress } from "@stellar/freighter-api";
 import Terminal, { type LogMessage } from './Terminal';
 import { DeployButton } from './DeployButton';
@@ -23,7 +23,23 @@ type CreationState = {
   type: 'file' | 'folder';
 } | null;
 
-export default function Right() {
+interface RightProps {
+  sidebarVisible?: boolean;
+  terminalVisible?: boolean;
+  onToggleSidebar?: () => void;
+  onToggleTerminal?: () => void;
+  onToggleLeftComponent?: () => void;
+  leftComponentVisible?: boolean;
+}
+
+export default function Right({ 
+  sidebarVisible = true, 
+  terminalVisible = false,
+  onToggleSidebar,
+  onToggleTerminal,
+  onToggleLeftComponent,
+  leftComponentVisible = true
+}: RightProps) {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [openFile, setOpenFile] = useState<FileNode | null>(null);
   const [fileContents, setFileContents] = useState<Map<string, string>>(new Map());
@@ -44,7 +60,7 @@ export default function Right() {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   //const [accountLoading, setAccountLoading] = useState(false);
   //const [contractLoading, setContractLoading] = useState(false);
-  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(terminalVisible);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const messageCountRef = useRef(0);
   const [terminalHeight, setTerminalHeight] = useState(250);
@@ -62,6 +78,13 @@ export default function Right() {
       type
     }]);
   };
+
+  // ============================================================================
+  // Update terminal visibility based on prop
+  // ============================================================================
+  useEffect(() => {
+    setTerminalOpen(terminalVisible);
+  }, [terminalVisible]);
 
   // ============================================================================
   // Intercept console methods (KEEP THIS - logs browser console to terminal)
@@ -1131,18 +1154,60 @@ export default function Right() {
             {contractLoading ? 'Loading....' : 'Deploy Contract'}
           </button> */}
           <DeployButton userId={userId} onLog={logToTerminal} isConnected={connected} onConnectWallet={connectWallet} />
-          <button
-            onClick={() => setTerminalOpen(!terminalOpen)}
-            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] text-white transition-colors flex items-center gap-2"
-            title="Toggle Console"
-          >
-            <TerminalIcon className="w-3 h-3" />
-            Console
-          </button>
         </div>
-        <div className="text-xs text-gray-500 flex items-center gap-2">
-          <span>Zoom: {fontSize}px</span>
-          <span className="text-gray-600">| ⌘/Ctrl+Scroll</span>
+
+        {/* Spacer */}
+        <div className="flex-1"></div>
+
+        {/* Toggle Icons */}
+        <div className="flex items-center gap-2">
+          {/* Icon 1: Toggle Sidebar */}
+          <div
+            className={`w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors ${
+              sidebarVisible
+                ? 'hover:bg-[#252525] hover:text-[#cccccc] text-[#cccccc]'
+                : 'hover:bg-[#252525] hover:text-[#cccccc] text-[#888888]'
+            }`}
+            onClick={onToggleSidebar}
+            title={sidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+          </div>
+
+          {/* Icon 2: Toggle Console/Terminal */}
+          <div
+            className={`w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors ${
+              terminalVisible
+                ? 'hover:bg-[#252525] hover:text-[#cccccc] text-[#cccccc]'
+                : 'hover:bg-[#252525] hover:text-[#cccccc] text-[#888888]'
+            }`}
+            onClick={onToggleTerminal}
+            title={terminalVisible ? 'Hide Terminal' : 'Show Terminal'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+          </div>
+
+          {/* Icon 3: Toggle Left Component (Full Width Right) */}
+          <div
+            className={`w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors ${
+              !leftComponentVisible
+                ? 'hover:bg-[#252525] hover:text-[#cccccc] text-[#cccccc]'
+                : 'hover:bg-[#252525] hover:text-[#cccccc] text-[#888888]'
+            }`}
+            onClick={onToggleLeftComponent}
+            title={leftComponentVisible ? 'Hide Left Panel' : 'Show Left Panel'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -1156,6 +1221,7 @@ export default function Right() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
+        {sidebarVisible && (
         <div className="w-64 bg-[#171717] border-r border-[#252525] overflow-y-auto flex flex-col">
           {/* Sidebar Header with Create Buttons */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-[#252525]">
@@ -1192,6 +1258,7 @@ export default function Right() {
             )}
           </div>
         </div>
+        )}
 
         {/* Editor */}
         <div className="flex-1 bg-[#171717] flex flex-col" ref={containerRef}>
