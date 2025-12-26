@@ -66,7 +66,7 @@ export function DeployButton({ userId, onLog, isConnected, onConnectWallet }: De
           Deploying...
         </span>
       ) : (
-        '🚀 Deploy with Wallet'
+        'Deploy'
       )}
     </button>
   );
