@@ -110,27 +110,32 @@ export async function deployWithWallet(
       throw new Error("WASM upload timeout");
     }
 
+    // Extract the WASM hash from the return value
     const wasmHash = uploadTxInfo.returnValue;
     if (!wasmHash) {
       throw new Error("Could not extract WASM hash from transaction");
     }
 
-    logToTerminal(`✓ WASM uploaded (hash: ${wasmHash.toString().slice(0, 8)}...)`, "log");
+    logToTerminal(
+      `✓ WASM uploaded (hash: ${wasmHash.toString().slice(0, 16)}...)`,
+      "log"
+    );
 
     // 5. Create contract instance
     const freshAccount = await server.getAccount(address);
-    const salt = StellarSdk.xdr.ScVal.scvBytes(
-      Buffer.from(Date.now().toString())
-    );
-
+    
+    // Create the salt as a Buffer
+    const saltBuffer = Buffer.from(Date.now().toString());
+    
     const createTx = new StellarSdk.TransactionBuilder(freshAccount, {
       fee: StellarSdk.BASE_FEE,
       networkPassphrase: NETWORK_PASSPHRASE,
     })
       .addOperation(
-        StellarSdk.Operation.createContract({
-          wasmHash: wasmHash,
-          salt: salt,
+        StellarSdk.Operation.createCustomContract({
+          wasmHash: uploadTxInfo.returnValue,
+          address: new StellarSdk.Address(address),
+          salt: saltBuffer,
         })
       )
       .setTimeout(30)
