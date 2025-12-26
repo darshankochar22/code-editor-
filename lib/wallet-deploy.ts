@@ -72,7 +72,7 @@ export async function deployWithWallet(
     const preparedUploadTx = await server.prepareTransaction(uploadTx);
     logToTerminal("⚠️ Sign WASM upload in wallet popup...", "warn");
 
-    const signedUploadTxXdr = await signTransaction(
+    const signedUploadTx = await signTransaction(
       preparedUploadTx.toXDR(),
       {
         networkPassphrase: NETWORK_PASSPHRASE,
@@ -81,7 +81,7 @@ export async function deployWithWallet(
 
     const uploadResult = await server.sendTransaction(
       StellarSdk.TransactionBuilder.fromXDR(
-        signedUploadTxXdr,
+        signedUploadTx.signedTxXdr,
         NETWORK_PASSPHRASE
       )
     );
@@ -139,7 +139,7 @@ export async function deployWithWallet(
     const preparedCreateTx = await server.prepareTransaction(createTx);
     logToTerminal("⚠️ Sign contract creation in wallet popup...", "warn");
 
-    const signedCreateTxXdr = await signTransaction(
+    const signedCreateTx = await signTransaction(
       preparedCreateTx.toXDR(),
       {
         networkPassphrase: NETWORK_PASSPHRASE,
@@ -148,7 +148,7 @@ export async function deployWithWallet(
 
     const createResult = await server.sendTransaction(
       StellarSdk.TransactionBuilder.fromXDR(
-        signedCreateTxXdr,
+        signedCreateTx.signedTxXdr,
         NETWORK_PASSPHRASE
       )
     );
