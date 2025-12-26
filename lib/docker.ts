@@ -201,13 +201,18 @@ export async function createAccount(userId: string) {
   }
 }
 
-export async function deployContract(userId: string){
+export async function deployContract(userId: string, publicKey?: string){
   try {
     const containerName = `user${userId}`;
     console.log(`Deploying contract in container: ${containerName}`);
     
+    // Build the deployment command with optional publicKey parameter
+    const deployCmd = publicKey
+      ? `stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --sign-with-key ${publicKey} --network testnet --alias hello_world`
+      : `stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world`;
+    
     const {stdout, stderr} = await execAsync(
-      `docker exec -u developer -w /home/developer/workspace/soroban-hello-world ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release && stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world"`,
+      `docker exec -u developer -w /home/developer/workspace/soroban-hello-world ${containerName} sh -c "stellar contract build && cargo build --target wasm32v1-none --release && ${deployCmd}"`,
       { timeout: 300000, maxBuffer: 10 * 1024 * 1024 }
     );
     

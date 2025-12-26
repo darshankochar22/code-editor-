@@ -16,7 +16,7 @@ executeCommand
 
 export async function POST(request: Request) {
 try {
-const { action, userId, filePath, content } = await request.json();
+const { action, userId, filePath, content, publicKey } = await request.json();
 switch (action) {
   case 'create':
     const createResult = await createAndInitializeContainer(userId);
@@ -59,7 +59,7 @@ switch (action) {
     return NextResponse.json(createAccountResult);
 
   case 'deployContract':
-    const deployContractResult = await deployContract(userId);
+    const deployContractResult = await deployContract(userId, publicKey);
     return NextResponse.json(deployContractResult);
 
   case 'executeCommand':

@@ -119,16 +119,23 @@ export default function Right() {
   // DEPLOY CONTRACT - UPDATED TO LOG VM OUTPUT
   // ============================================================================
   const handleDeployContract = async () => {
+    if (!publicKey) {
+      logToTerminal('✗ Wallet not connected. Please connect your Freighter wallet first.', 'error');
+      setError('Wallet not connected');
+      return;
+    }
+
     setContractLoading(true);
     setError(null);
     setTerminalOpen(true); // Auto-open terminal
     logToTerminal('Starting contract deployment...', 'info');
+    logToTerminal(`Using account: ${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`, 'info');
     
     try {
       const response = await fetch('/api/docker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deployContract', userId })
+        body: JSON.stringify({ action: 'deployContract', userId, publicKey })
       });
       const data = await response.json();
       
