@@ -9,6 +9,7 @@ import EditorPanel from "./EditorPanel";
 import TopBar from "./TopBar";
 import ErrorBanner from "./ErrorBanner";
 import { useWallet } from "../hooks/useWallet";
+import { useFileManager } from "../hooks/useFileManager";
 
 type MonacoType = unknown;
 
@@ -42,29 +43,10 @@ export default function Right({
   onToggleLeftComponent,
   leftComponentVisible = true,
 }: RightProps) {
-  const [files, setFiles] = useState<FileNode[]>([]);
-  const [openFile, setOpenFile] = useState<FileNode | null>(null);
-  const [fileContents, setFileContents] = useState<Map<string, string>>(
-    new Map()
-  );
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(["src"])
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [containerLoading, setContainerLoading] = useState(false);
   const [userId] = useState("1");
   const [error, setError] = useState<string | null>(null);
-  const [creatingItem, setCreatingItem] = useState<CreationState>(null);
-  const [newItemName, setNewItemName] = useState("");
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const accumulatedDeltaRef = useRef(0);
-
-  //const [accountLoading, setAccountLoading] = useState(false);
-  //const [contractLoading, setContractLoading] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(terminalVisible);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const messageCountRef = useRef(0);
@@ -74,6 +56,13 @@ export default function Right({
   const startXRef = useRef(0);
   const startWidthRef = useRef(256);
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const accumulatedDeltaRef = useRef(0);
+
+  //const [accountLoading, setAccountLoading] = useState(false);
+  //const [contractLoading, setContractLoading] = useState(false);
 
   // ============================================================================
   // HELPER FUNCTION: Log to Terminal
@@ -98,6 +87,30 @@ export default function Right({
   // Wallet hook
   const { connected, publicKey, connectWallet, disconnectWallet } =
     useWallet(logToTerminal);
+
+  // File Manager hook
+  const {
+    files,
+    openFile,
+    fileContents,
+    expandedFolders,
+    creatingItem,
+    newItemName,
+    isLoading,
+    isSaving,
+    loadFiles,
+    handleFileClick,
+    handleSave,
+    handleCreateFile,
+    handleCreateFolder,
+    confirmCreateItem,
+    cancelCreateItem,
+    handleDeleteFile,
+    handleDeleteFolder,
+    toggleFolder,
+    setNewItemName,
+    setOpenFile,
+  } = useFileManager(userId, logToTerminal, setError, setTerminalOpen);
 
   // ============================================================================
   // SIDEBAR RESIZING
@@ -309,48 +322,6 @@ export default function Right({
   }
   */
   }
-
-  // ============================================================================
-  // LOAD FILES
-  // ============================================================================
-  async function loadFiles(preserveExpanded = true) {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/docker", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "getFiles", userId }),
-      });
-      const data = await response.json();
-
-      if (data.success && data.files) {
-        const tree = buildFileTree(data.files);
-        setFiles(tree);
-
-        if (!preserveExpanded) {
-          const commonFolders = ["src", "contracts", "soroban-hello-world"];
-          setExpandedFolders(new Set(commonFolders));
-        }
-      } else {
-        setError(data.error || "Failed to load files");
-        setFiles([]);
-      }
-    } catch (error) {
-      console.error("Failed to load files:", error);
-      setError("Failed to connect to server");
-      setFiles([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    const initializeFiles = async () => {
-      await loadFiles(false);
-    };
-    initializeFiles();
-  }, [userId]);
 
   // ============================================================================
   // Monaco Editor Setup (KEEP AS IS)
