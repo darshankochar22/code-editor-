@@ -99,22 +99,6 @@ export default function EditorPanel({
     editorRef.current = editorInstance;
     editorInstance.focus();
 
-    if (monaco && monaco.languages) {
-      monaco.languages.typescript?.typescriptDefaults?.setCompilerOptions({
-        target: monaco.languages.typescript.ScriptTarget.ES2020,
-        allowNonTsExtensions: true,
-        moduleResolution:
-          monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-        module: monaco.languages.typescript.ModuleKind.ESNext,
-        noEmit: true,
-        esModuleInterop: true,
-        jsx: monaco.languages.typescript.JsxEmit.React,
-        allowJs: true,
-        skipLibCheck: true,
-        strict: false,
-      });
-    }
-
     if (containerRef.current) {
       containerRef.current.addEventListener("wheel", handleMouseWheel, {
         passive: false,
