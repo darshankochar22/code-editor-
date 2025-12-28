@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 interface UseSidebarResizeProps {
   initialWidth?: number;
@@ -8,6 +8,10 @@ interface UseSidebarResizeProps {
   maxWidth?: number;
 }
 
+/**
+ * Hook to manage sidebar resizing with drag handle
+ * Handles mouse events for smooth resizing with constraints
+ */
 export function useSidebarResize({
   initialWidth = 256,
   minWidth = 200,
@@ -18,20 +22,27 @@ export function useSidebarResize({
   const startXRef = useRef(0);
   const startWidthRef = useRef(initialWidth);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  /**
+   * Start resizing when mouse down on resize handle
+   */
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
     setIsResizing(true);
     startXRef.current = e.clientX;
     startWidthRef.current = sidebarWidth;
-  };
+  }, [sidebarWidth]);
 
+  /**
+   * Handle mouse move and mouse up events for resizing
+   */
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
+    if (!isResizing) return;
 
+    const handleMouseMove = (e: MouseEvent) => {
       const delta = e.clientX - startXRef.current;
       const newWidth = startWidthRef.current + delta;
 
-      // Constrain width
+      // Constrain width between min and max
       const constrainedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
       setSidebarWidth(constrainedWidth);
     };
@@ -42,24 +53,34 @@ export function useSidebarResize({
       document.body.style.userSelect = "auto";
     };
 
-    if (isResizing) {
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+    // Set cursor for resizing
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    
+    // Attach event listeners
+    document.addEventListener("mousemove", handleMouseMove, { passive: false });
+    document.addEventListener("mouseup", handleMouseUp, { passive: false });
 
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isResizing, sidebarWidth, minWidth, maxWidth]);
+    // Cleanup
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, minWidth, maxWidth]);
+
+  /**
+   * Reset sidebar width (useful when toggling visibility)
+   */
+  const resetWidth = useCallback(() => {
+    setSidebarWidth(initialWidth);
+  }, [initialWidth]);
 
   return {
     sidebarWidth,
     setSidebarWidth,
     isResizing,
     handleMouseDown,
+    resetWidth,
   };
 }
 

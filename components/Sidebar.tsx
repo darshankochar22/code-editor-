@@ -217,11 +217,11 @@ export default function Sidebar({
   return (
     <>
       <div
-        style={{ width: `${sidebarWidth}px` }}
-        className="bg-[#171717] border-r border-[#252525] overflow-y-auto flex flex-col sidebar-scrollbar transition-none"
+        style={{ width: `${sidebarWidth}px`, minWidth: `${sidebarWidth}px` }}
+        className="bg-[#171717] border-r border-[#252525] overflow-y-auto flex flex-col sidebar-scrollbar"
       >
         {/* Sidebar Header with Create Buttons */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[#252525]">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#252525] shrink-0">
           <span className="text-xs text-gray-400 font-semibold uppercase">
             Explorer
           </span>
@@ -260,11 +260,12 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Resize Handle */}
+      {/* Resize Handle - Full height, easy to grab */}
       <div
         onMouseDown={onMouseDown}
-        className="w-1 bg-[#252525] hover:bg-[#3a3a3a] cursor-col-resize transition-colors shrink-0"
+        className="w-1 h-full bg-[#252525] hover:bg-blue-500 cursor-col-resize transition-colors shrink-0 active:bg-blue-600"
         title="Drag to resize sidebar"
+        style={{ userSelect: "none" }}
       />
     </>
   );
