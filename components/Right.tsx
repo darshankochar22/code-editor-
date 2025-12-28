@@ -575,7 +575,6 @@ export default function Right({
   // ============================================================================
   async function handleSave() {
     if (!openFile) return;
-
     setIsSaving(true);
     setError(null);
     logToTerminal(`Saving ${openFile.name}...`, 'info');
