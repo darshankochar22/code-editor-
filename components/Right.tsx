@@ -4,10 +4,11 @@ import { useRef, useState, useEffect } from "react";
 import type { editor } from "monaco-editor";
 import { isConnected, setAllowed, getAddress } from "@stellar/freighter-api";
 import { type LogMessage } from "./Terminal";
-import { DeployButton } from "./DeployButton";
 import type { OpenFile } from "./TabBar";
 import Sidebar from "./Sidebar";
 import EditorPanel from "./EditorPanel";
+import TopBar from "./TopBar";
+import ErrorBanner from "./ErrorBanner";
 
 type MonacoType = unknown;
 
@@ -1090,163 +1091,28 @@ export default function Right({
 
   return (
     <div className="flex flex-col h-full bg-[#171717] overflow-hidden">
-      {/* Top bar */}
-      <div className="h-10 bg-[#171717] border-b border-[#252525] flex items-center justify-between px-3">
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500">User: {userId}</span>
+      <TopBar
+        userId={userId}
+        connected={connected}
+        publicKey={publicKey}
+        isSaving={isSaving}
+        containerLoading={containerLoading}
+        openFile={openFile}
+        sidebarVisible={sidebarVisible}
+        terminalVisible={terminalVisible}
+        leftComponentVisible={leftComponentVisible}
+        onConnectWallet={connectWallet}
+        onDisconnectWallet={disconnectWallet}
+        onSave={handleSave}
+        onCreateContainer={handleCreateContainer}
+        onDeleteContainer={handleDeleteContainer}
+        onToggleSidebar={() => onToggleSidebar?.()}
+        onToggleTerminal={() => onToggleTerminal?.()}
+        onToggleLeftComponent={() => onToggleLeftComponent?.()}
+        onLog={logToTerminal}
+      />
 
-          {connected ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-white">
-                {publicKey?.slice(0, 4)}...{publicKey?.slice(-4)}
-              </span>
-              <button
-                onClick={disconnectWallet}
-                className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] text-white transition-colors"
-              >
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={connectWallet}
-              className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] text-white transition-colors"
-            >
-              Connect Wallet
-            </button>
-          )}
-
-          {openFile && (
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
-            >
-              {isSaving ? "Saving..." : "Save (⌘S)"}
-            </button>
-          )}
-          <button
-            onClick={handleCreateContainer}
-            disabled={containerLoading}
-            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
-          >
-            {containerLoading ? "Loading..." : "Create Container"}
-          </button>
-          <button
-            onClick={handleDeleteContainer}
-            disabled={containerLoading}
-            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-600 text-white disabled:opacity-50 transition-colors"
-          >
-            {containerLoading ? "Loading..." : "Delete Container"}
-          </button>
-          {/*     <button
-            onClick={() => loadFiles(true)}
-            disabled={isLoading}
-            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
-          >
-            {isLoading ? 'Loading...' : 'Refresh'}
-          </button>
-          <button
-            onClick={handleCreateAccount}
-            disabled={accountLoading}
-            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
-          >
-            {accountLoading ? 'Loading....' : 'Create Account'}
-          </button>
-          <button
-            onClick={handleDeployContract}
-            disabled={contractLoading}
-            className="text-xs px-3 py-1 rounded dark:bg-black hover:bg-[#171717] disabled:bg-gray-800 text-white disabled:opacity-50 transition-colors"
-          >
-            {contractLoading ? 'Loading....' : 'Deploy Contract'}
-          </button> */}
-          <DeployButton
-            userId={userId}
-            onLog={logToTerminal}
-            isConnected={connected}
-            onConnectWallet={connectWallet}
-          />
-        </div>
-
-        {/* Spacer */}
-        <div className="flex-1"></div>
-
-        {/* Toggle Icons */}
-        <div className="flex items-center gap-2">
-          {/* Icon 1: Toggle Sidebar */}
-          <div
-            className={`w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors ${
-              sidebarVisible
-                ? "hover:bg-[#252525] hover:text-[#cccccc] text-[#cccccc]"
-                : "hover:bg-[#252525] hover:text-[#cccccc] text-[#888888]"
-            }`}
-            onClick={() => onToggleSidebar?.()}
-            title={sidebarVisible ? "Hide Sidebar" : "Show Sidebar"}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-4 h-4"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-            </svg>
-          </div>
-
-          {/* Icon 2: Toggle Console/Terminal */}
-          <div
-            className={`w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors ${
-              terminalVisible
-                ? "hover:bg-[#252525] hover:text-[#cccccc] text-[#cccccc]"
-                : "hover:bg-[#252525] hover:text-[#cccccc] text-[#888888]"
-            }`}
-            onClick={() => onToggleTerminal?.()}
-            title={terminalVisible ? "Hide Terminal" : "Show Terminal"}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-4 h-4"
-            >
-              <polyline points="4 17 10 11 4 5"></polyline>
-              <line x1="12" y1="19" x2="20" y2="19"></line>
-            </svg>
-          </div>
-
-          {/* Icon 3: Toggle Left Component (Full Width Right) */}
-          <div
-            className={`w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors ${
-              !leftComponentVisible
-                ? "hover:bg-[#252525] hover:text-[#cccccc] text-[#cccccc]"
-                : "hover:bg-[#252525] hover:text-[#cccccc] text-[#888888]"
-            }`}
-            onClick={() => onToggleLeftComponent?.()}
-            title={leftComponentVisible ? "Hide Left Panel" : "Show Left Panel"}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-4 h-4"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      {/* Error banner */}
-      {error && (
-        <div className="dark:bg-black  px-4 py-2">
-          <p className="text-white text-sm">{error}</p>
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
