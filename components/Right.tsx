@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import type { editor } from "monaco-editor";
 import { type LogMessage } from "./Terminal";
 import type { OpenFile } from "./TabBar";
@@ -78,22 +78,22 @@ export default function Right({
   // ============================================================================
   // HELPER FUNCTION: Log to Terminal
   // ============================================================================
-  const logToTerminal = (
-    message: string,
-    type: "log" | "error" | "warn" | "info" = "log"
-  ) => {
-    const now = new Date();
-    const timestamp = now.toLocaleTimeString();
-    setLogs((prev) => [
-      ...prev,
-      {
-        id: messageCountRef.current++,
-        message,
-        timestamp,
-        type,
-      },
-    ]);
-  };
+  const logToTerminal = useCallback(
+    (message: string, type: "log" | "error" | "warn" | "info" = "log") => {
+      const now = new Date();
+      const timestamp = now.toLocaleTimeString();
+      setLogs((prev) => [
+        ...prev,
+        {
+          id: messageCountRef.current++,
+          message,
+          timestamp,
+          type,
+        },
+      ]);
+    },
+    []
+  );
 
   // Wallet hook
   const { connected, publicKey, connectWallet, disconnectWallet } =
@@ -539,7 +539,7 @@ export default function Right({
   // ============================================================================
   // SAVE FILE - UPDATED TO LOG TO TERMINAL
   // ============================================================================
-  async function handleSave() {
+  const handleSave = useCallback(async () => {
     if (!openFile) return;
     setIsSaving(true);
     setError(null);
@@ -582,7 +582,7 @@ export default function Right({
     } finally {
       setIsSaving(false);
     }
-  }
+  }, [openFile, fileContents, userId, logToTerminal]);
 
   async function handleCreateFile(parentPath: string = "") {
     setCreatingItem({ parentPath, type: "file" });
