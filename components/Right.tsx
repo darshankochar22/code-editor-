@@ -2,13 +2,13 @@
 
 import { useRef, useState, useEffect } from "react";
 import type { editor } from "monaco-editor";
-import { isConnected, setAllowed, getAddress } from "@stellar/freighter-api";
 import { type LogMessage } from "./Terminal";
 import type { OpenFile } from "./TabBar";
 import Sidebar from "./Sidebar";
 import EditorPanel from "./EditorPanel";
 import TopBar from "./TopBar";
 import ErrorBanner from "./ErrorBanner";
+import { useWallet } from "../hooks/useWallet";
 
 type MonacoType = unknown;
 
@@ -62,8 +62,7 @@ export default function Right({
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedDeltaRef = useRef(0);
-  const [connected, setConnected] = useState(false);
-  const [publicKey, setPublicKey] = useState<string | null>(null);
+
   //const [accountLoading, setAccountLoading] = useState(false);
   //const [contractLoading, setContractLoading] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(terminalVisible);
@@ -95,6 +94,10 @@ export default function Right({
       },
     ]);
   };
+
+  // Wallet hook
+  const { connected, publicKey, connectWallet, disconnectWallet } =
+    useWallet(logToTerminal);
 
   // ============================================================================
   // SIDEBAR RESIZING
@@ -306,94 +309,6 @@ export default function Right({
   }
   */
   }
-  // ============================================================================
-  // Freighter Wallet Functions
-  // ============================================================================
-  const isFreighterAvailable = () => {
-    if (typeof window === "undefined") return false;
-    return (
-      (window as unknown as Record<string, unknown>).freighter !== undefined
-    );
-  };
-
-  useEffect(() => {
-    const checkConnection = async () => {
-      if (typeof window === "undefined") return;
-
-      try {
-        if (!isFreighterAvailable()) {
-          console.log("Freighter not installed");
-          return;
-        }
-
-        const alreadyConnected = await isConnected();
-        if (alreadyConnected) {
-          const result = await getAddress();
-          setConnected(true);
-          setPublicKey(result.address || null);
-          console.log("Already connected to wallet:", result.address);
-        }
-      } catch (err) {
-        console.log("Not connected to wallet:", err);
-      }
-    };
-
-    checkConnection();
-  }, []);
-
-  // ============================================================================
-  // CONNECT WALLET - UPDATED TO LOG TO TERMINAL
-  // ============================================================================
-  const connectWallet = async () => {
-    try {
-      setError(null);
-      logToTerminal("Connecting to Freighter wallet...", "info");
-
-      if (typeof window === "undefined") return;
-
-      const connectionStatus = await isConnected();
-      if (!connectionStatus.isConnected) {
-        logToTerminal("✗ Freighter wallet not found", "error");
-        setError(
-          "Freighter wallet not found. Please install it from freighter.app"
-        );
-        window.open("https://www.freighter.app/", "_blank");
-        return;
-      }
-
-      const access = await setAllowed();
-
-      if (access.isAllowed) {
-        const { address, error } = await getAddress();
-
-        if (address) {
-          setPublicKey(address);
-          setConnected(true);
-          logToTerminal(
-            `✓ Wallet connected: ${address.slice(0, 4)}...${address.slice(-4)}`,
-            "log"
-          );
-        } else {
-          throw new Error(error || "Failed to retrieve address");
-        }
-      } else {
-        logToTerminal("✗ User declined wallet access", "warn");
-        throw new Error("User declined access");
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logToTerminal(`✗ Connection error: ${errorMessage}`, "error");
-      setError(errorMessage || "Failed to connect wallet.");
-      setConnected(false);
-    }
-  };
-
-  const disconnectWallet = () => {
-    setConnected(false);
-    setPublicKey(null);
-    setError(null);
-    logToTerminal("✓ Wallet disconnected", "log");
-  };
 
   // ============================================================================
   // LOAD FILES
