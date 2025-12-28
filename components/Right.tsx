@@ -150,6 +150,27 @@ export default function Right({
   }, [isResizingSidebar, sidebarWidth]);
 
   // ============================================================================
+  // FILE CLICK WRAPPER - Sync with openFiles TabBar state
+  // ============================================================================
+  const handleFileClickWrapper = useCallback(
+    async (file: FileNode) => {
+      await handleFileClick(file);
+      // Update openFiles for TabBar
+      setOpenFiles((prev) => {
+        const exists = prev.find((f) => f.path === file.path);
+        if (!exists && file.type === "file") {
+          return [
+            ...prev,
+            { path: file.path, name: file.name, isDirty: false },
+          ];
+        }
+        return prev;
+      });
+    },
+    [handleFileClick]
+  );
+
+  // ============================================================================
   // TAB BAR HANDLERS
   // ============================================================================
   const handleSelectTab = (path: string) => {
@@ -672,7 +693,7 @@ export default function Right({
             creatingItem={creatingItem}
             newItemName={newItemName}
             onToggleFolder={toggleFolder}
-            onFileClick={handleFileClick}
+            onFileClick={handleFileClickWrapper}
             onCreateFile={handleCreateFile}
             onCreateFolder={handleCreateFolder}
             onDeleteFile={handleDeleteFile}
