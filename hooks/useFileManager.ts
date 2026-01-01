@@ -53,7 +53,8 @@ export function useFileManager(
   userId: string,
   onLog: LogFunction,
   onError: (error: string | null) => void,
-  onSetTerminalOpen: (open: boolean) => void
+  onSetTerminalOpen: (open: boolean) => void,
+  projectName?: string
 ): UseFileManagerReturn {
   // File tree management
   const {
@@ -75,7 +76,7 @@ export function useFileManager(
     setOpenFile,
     handleFileClick,
     handleSave,
-  } = useFileCache(userId, onLog, onError);
+  } = useFileCache(userId, onLog, onError, projectName);
 
   // File operations (load, delete)
   const { loadFiles: loadFilesImpl, handleDeleteFile: deleteFileImpl, handleDeleteFolder: deleteFolderImpl } = useFileOperations(
@@ -83,15 +84,16 @@ export function useFileManager(
     onLog,
     onError,
     onSetTerminalOpen,
-    buildFileTree
+    buildFileTree,
+    projectName
   );
 
   // Wrapper for loadFiles to match expected signature
   const loadFilesWrapper = useCallback(
     async (preserveExpanded = true) => {
-      await loadFilesImpl(preserveExpanded, setFiles, setExpandedFolders);
+      await loadFilesImpl(preserveExpanded, setFiles, setExpandedFolders, projectName);
     },
-    [loadFilesImpl, setFiles, setExpandedFolders]
+    [loadFilesImpl, setFiles, setExpandedFolders, projectName]
   );
 
   // File/folder creation
@@ -111,7 +113,8 @@ export function useFileManager(
     loadFilesWrapper,
     setOpenFile,
     setFileContents,
-    setExpandedFolders
+    setExpandedFolders,
+    projectName
   );
 
   // Wrapper for handleDeleteFile to pass required callbacks

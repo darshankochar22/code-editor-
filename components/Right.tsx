@@ -31,6 +31,7 @@ interface RightProps {
   onToggleTerminal?: () => void;
   onToggleLeftComponent?: () => void;
   leftComponentVisible?: boolean;
+  projectName?: string;
 }
 
 export default function Right({
@@ -40,6 +41,7 @@ export default function Right({
   onToggleTerminal,
   onToggleLeftComponent,
   leftComponentVisible = false,
+  projectName,
 }: RightProps) {
   const [fontSize, setFontSize] = useState(14);
   const [containerLoading, setContainerLoading] = useState(false);
@@ -90,7 +92,13 @@ export default function Right({
     setOpenFile,
     setFileContents,
     setFiles,
-  } = useFileManager(userId, logToTerminal, setError, setTerminalOpen);
+  } = useFileManager(
+    userId,
+    logToTerminal,
+    setError,
+    setTerminalOpen,
+    projectName
+  );
 
   // Monaco Editor Setup hook
   const { editorRef, handleEditorDidMount } = useMonacoSetup({
@@ -198,6 +206,7 @@ export default function Right({
         sidebarVisible={sidebarVisible}
         terminalVisible={terminalVisible}
         leftComponentVisible={leftComponentVisible}
+        projectName={projectName}
         onConnectWallet={connectWallet}
         onDisconnectWallet={disconnectWallet}
         onSave={handleSave}

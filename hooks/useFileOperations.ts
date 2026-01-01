@@ -24,7 +24,8 @@ export function useFileOperations(
   onLog: LogFunction,
   onError: (error: string | null) => void,
   onSetTerminalOpen: (open: boolean) => void,
-  buildFileTree: (flatFiles: string[]) => FileNode[]
+  buildFileTree: (flatFiles: string[]) => FileNode[],
+  projectName?: string
 ) {
   /**
    * Load files from container and build tree
@@ -36,14 +37,19 @@ export function useFileOperations(
     async (
       preserveExpanded: boolean,
       onSetFiles: (files: FileNode[]) => void,
-      onSetExpandedFolders: (cb: (prev: Set<string>) => Set<string>) => void
+      onSetExpandedFolders: (cb: (prev: Set<string>) => Set<string>) => void,
+      projectNameParam?: string
     ) => {
       onError(null);
       try {
         const response = await fetch("/api/docker", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "getFiles", userId }),
+          body: JSON.stringify({ 
+            action: "getFiles", 
+            userId,
+            projectName: projectNameParam || projectName
+          }),
         });
         const data = await response.json();
 
@@ -65,7 +71,7 @@ export function useFileOperations(
         onSetFiles([]);
       }
     },
-    [userId, onError, buildFileTree]
+    [userId, onError, buildFileTree, projectName]
   );
 
   /**
@@ -99,6 +105,7 @@ export function useFileOperations(
             action: "deleteFile",
             userId,
             filePath,
+            projectName,
           }),
         });
 
@@ -124,7 +131,7 @@ export function useFileOperations(
         onError("Failed to delete file");
       }
     },
-    [userId, onLog, onError, onSetTerminalOpen]
+    [userId, onLog, onError, onSetTerminalOpen, projectName]
   );
 
   /**
@@ -158,6 +165,7 @@ export function useFileOperations(
             action: "deleteFolder",
             userId,
             filePath: folderPath,
+            projectName,
           }),
         });
 
@@ -183,7 +191,7 @@ export function useFileOperations(
         onError("Failed to delete folder");
       }
     },
-    [userId, onLog, onError, onSetTerminalOpen]
+    [userId, onLog, onError, onSetTerminalOpen, projectName]
   );
 
   return {

@@ -22,7 +22,8 @@ type LogFunction = (
 export function useFileCache(
   userId: string,
   onLog: LogFunction,
-  onError: (error: string | null) => void
+  onError: (error: string | null) => void,
+  projectName?: string
 ) {
   const [fileContents, setFileContents] = useState<Map<string, string>>(
     new Map()
@@ -60,6 +61,7 @@ export function useFileCache(
               action: "getFileContent",
               userId,
               filePath: file.path,
+              projectName,
             }),
           });
           const data = await response.json();
@@ -79,7 +81,7 @@ export function useFileCache(
         }
       }
     },
-    [userId, onError]
+    [userId, onError, projectName]
   );
 
   /**
@@ -102,6 +104,7 @@ export function useFileCache(
           userId,
           filePath: openFile.path,
           content,
+          projectName,
         }),
       });
 
@@ -123,7 +126,7 @@ export function useFileCache(
     } finally {
       setIsSaving(false);
     }
-  }, [openFile, fileContents, userId, onLog, onError]);
+  }, [openFile, fileContents, userId, onLog, onError, projectName]);
 
   return {
     fileContents,

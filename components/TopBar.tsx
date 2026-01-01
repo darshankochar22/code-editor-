@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { DeployButton } from "./DeployButton";
 import ToggleButtons from "./ToggleButtons";
 
@@ -13,7 +15,8 @@ interface TopBarProps {
   sidebarVisible: boolean;
   terminalVisible: boolean;
   leftComponentVisible: boolean;
-  onConnectWallet: () => void;
+  projectName?: string;
+  onConnectWallet: () => Promise<void>;
   onDisconnectWallet: () => void;
   onSave: () => void | Promise<void>;
   onCreateContainer: () => void | Promise<void>;
@@ -34,6 +37,7 @@ export default function TopBar({
   sidebarVisible,
   terminalVisible,
   leftComponentVisible,
+  projectName,
   onConnectWallet,
   onDisconnectWallet,
   onSave,
@@ -47,6 +51,19 @@ export default function TopBar({
   return (
     <div className="h-10 bg-[#171717] border-b border-[#252525] flex items-center justify-between px-3">
       <div className="flex items-center gap-3">
+        {/* Back button and Project name */}
+        {projectName && (
+          <Link href="/">
+            <button
+              className="text-xs px-2 py-1 rounded hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+              title="Back to projects"
+            >
+              <ArrowLeft size={16} />
+              <span className="font-medium text-white">{projectName}</span>
+            </button>
+          </Link>
+        )}
+
         <span className="text-xs text-gray-500">User: {userId}</span>
 
         {connected ? (
@@ -101,6 +118,7 @@ export default function TopBar({
           onLog={onLog}
           isConnected={connected}
           onConnectWallet={onConnectWallet}
+          projectName={projectName}
         />
       </div>
 

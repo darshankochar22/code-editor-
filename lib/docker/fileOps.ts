@@ -7,7 +7,7 @@
 import {
   execAsync,
   getContainerName,
-  getProjectPath,
+  getWorkspacePath,
   escapeFilePath,
   escapeShellArg,
 } from './utils';
@@ -15,12 +15,13 @@ import {
 /**
  * Get all files from container project directory
  * @param userId The user ID
+ * @param projectName Optional specific project to filter files from
  * @returns List of files
  */
-export async function getContainerFiles(userId: string) {
+export async function getContainerFiles(userId: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    console.log(`Getting files from container: ${containerName}`);
+    console.log(`Getting files from container: ${containerName}, project: ${projectName}`);
 
     // Verify container is running
     const { stdout: statusCheck } = await execAsync(
@@ -31,37 +32,49 @@ export async function getContainerFiles(userId: string) {
       throw new Error('Container is not running');
     }
 
-    const projectPath = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    
+    // If no projectName, we need one
+    if (!projectName) {
+      return {
+        success: true,
+        files: [],
+        message: 'Please select a project to open',
+      };
+    }
+
+    const searchPath = `${workspacePath}/${projectName}`;
+    console.log(`Searching for files in: ${searchPath}`);
 
     // Check if project exists
     const { stdout: projectExists } = await execAsync(
-      `docker exec ${containerName} test -d ${projectPath} && echo "exists" || echo "missing"`
+      `docker exec ${containerName} test -d ${searchPath} && echo "exists" || echo "missing"`
     );
 
     if (projectExists.trim() !== 'exists') {
       return {
         success: true,
         files: [],
-        message: 'Project not initialized yet. Click "Create Container" to initialize.',
+        message: `Project ${projectName} not found`,
       };
     }
 
     // Get files from container - find all files recursively
     const { stdout } = await execAsync(
-      `docker exec ${containerName} find ${projectPath} -type f 2>/dev/null`,
+      `docker exec ${containerName} find ${searchPath} -type f 2>/dev/null`,
       { timeout: 10000 }
     );
 
     // Parse the output and filter out unwanted paths
-    const allFiles = stdout
+    let allFiles = stdout
       .trim()
       .split('\n')
       .filter((f) => f.length > 0)
-      .map((f) => f.replace(`${projectPath}/`, ''))
+      .map((f) => f.replace(`${searchPath}/`, ''))
       // Filter out build artifacts
-      .filter((f) => !f.includes('/target/') && !f.includes('/.git/') && f !== 'Cargo.lock');
+      .filter((f) => !f.includes('/target/') && !f.includes('/.git/') && f !== 'Cargo.lock' && f !== 'projects.json');
 
-    console.log(`Found ${allFiles.length} files in ${projectPath}`);
+    console.log(`Found ${allFiles.length} files in ${searchPath}`);
     console.log('Files list:', allFiles);
     return { success: true, files: allFiles };
   } catch (error) {
@@ -79,15 +92,22 @@ export async function getContainerFiles(userId: string) {
  * Get content of a specific file
  * @param userId The user ID
  * @param filePath The relative file path
+ * @param projectName Optional specific project
  * @returns File content
  */
-export async function getFileContent(userId: string, filePath: string) {
+export async function getFileContent(userId: string, filePath: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
     const safePath = escapeFilePath(filePath);
     console.log(`Reading file: ${safePath} from container: ${containerName}`);
 
-    const fullPath = `${getProjectPath()}/${safePath}`;
+    if (!projectName) {
+      throw new Error('Project name is required');
+    }
+
+    const workspacePath = getWorkspacePath();
+    const basePath = `${workspacePath}/${projectName}`;
+    const fullPath = `${basePath}/${safePath}`;
     console.log(`Full path for reading: ${fullPath}`);
 
     // Verify file exists first
@@ -123,15 +143,22 @@ export async function getFileContent(userId: string, filePath: string) {
  * @param userId The user ID
  * @param filePath The relative file path
  * @param content The file content to save
+ * @param projectName Optional specific project
  * @returns Save result
  */
-export async function saveFileContent(userId: string, filePath: string, content: string) {
+export async function saveFileContent(userId: string, filePath: string, content: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
     const safePath = escapeFilePath(filePath);
     console.log(`Saving file: ${safePath} to container: ${containerName}`);
 
-    const fullPath = `${getProjectPath()}/${safePath}`;
+    if (!projectName) {
+      throw new Error('Project name is required');
+    }
+
+    const workspacePath = getWorkspacePath();
+    const basePath = `${workspacePath}/${projectName}`;
+    const fullPath = `${basePath}/${safePath}`;
     console.log(`Full path: ${fullPath}`);
 
     // First verify the file exists
@@ -143,7 +170,7 @@ export async function saveFileContent(userId: string, filePath: string, content:
       console.error(`File not found at: ${fullPath}`);
       // Try to show what files exist
       const { stdout: dirContents } = await execAsync(
-        `docker exec ${containerName} find ${getProjectPath()} -name "lib.rs" 2>/dev/null || true`
+        `docker exec ${containerName} find ${basePath} -name "lib.rs" 2>/dev/null || true`
       );
       console.log('Found lib.rs at:', dirContents);
       return {
@@ -179,15 +206,22 @@ export async function saveFileContent(userId: string, filePath: string, content:
  * Delete a file from the container
  * @param userId The user ID
  * @param filePath The relative file path
+ * @param projectName Optional specific project
  * @returns Deletion result
  */
-export async function deleteFile(userId: string, filePath: string) {
+export async function deleteFile(userId: string, filePath: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
     const safePath = escapeFilePath(filePath);
     console.log(`Deleting file: ${safePath} from container: ${containerName}`);
 
-    const fullPath = `${getProjectPath()}/${safePath}`;
+    if (!projectName) {
+      throw new Error('Project name is required');
+    }
+
+    const workspacePath = getWorkspacePath();
+    const basePath = `${workspacePath}/${projectName}`;
+    const fullPath = `${basePath}/${safePath}`;
 
     // Verify file exists
     const { stdout: fileCheck } = await execAsync(
@@ -220,15 +254,22 @@ export async function deleteFile(userId: string, filePath: string) {
  * Delete a folder from the container
  * @param userId The user ID
  * @param folderPath The relative folder path
+ * @param projectName Optional specific project
  * @returns Deletion result
  */
-export async function deleteFolder(userId: string, folderPath: string) {
+export async function deleteFolder(userId: string, folderPath: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
     const safePath = escapeFilePath(folderPath);
     console.log(`Deleting folder: ${safePath} from container: ${containerName}`);
 
-    const fullPath = `${getProjectPath()}/${safePath}`;
+    if (!projectName) {
+      throw new Error('Project name is required');
+    }
+
+    const workspacePath = getWorkspacePath();
+    const basePath = `${workspacePath}/${projectName}`;
+    const fullPath = `${basePath}/${safePath}`;
 
     // Verify folder exists
     const { stdout: folderCheck } = await execAsync(
@@ -262,15 +303,22 @@ export async function deleteFolder(userId: string, folderPath: string) {
  * @param userId The user ID
  * @param filePath The relative file path
  * @param content The initial file content
+ * @param projectName Optional specific project
  * @returns Creation result
  */
-export async function createFile(userId: string, filePath: string, content: string = '') {
+export async function createFile(userId: string, filePath: string, content: string = '', projectName?: string) {
   try {
     const containerName = getContainerName(userId);
     const safePath = escapeFilePath(filePath);
     console.log(`Creating file: ${safePath} in container: ${containerName}`);
 
-    const fullPath = `${getProjectPath()}/${safePath}`;
+    if (!projectName) {
+      throw new Error('Project name is required');
+    }
+
+    const workspacePath = getWorkspacePath();
+    const basePath = `${workspacePath}/${projectName}`;
+    const fullPath = `${basePath}/${safePath}`;
 
     // Create parent directories if needed
     const dir = fullPath.substring(0, fullPath.lastIndexOf('/'));
@@ -307,15 +355,22 @@ export async function createFile(userId: string, filePath: string, content: stri
  * Create a folder in the container
  * @param userId The user ID
  * @param folderPath The path of the folder to create
+ * @param projectName Optional specific project
  * @returns Success or error
  */
-export async function createFolder(userId: string, folderPath: string) {
+export async function createFolder(userId: string, folderPath: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
     const safePath = escapeFilePath(folderPath);
     console.log(`Creating folder: ${safePath} in container: ${containerName}`);
 
-    const fullPath = `${getProjectPath()}/${safePath}`;
+    if (!projectName) {
+      throw new Error('Project name is required');
+    }
+
+    const workspacePath = getWorkspacePath();
+    const basePath = `${workspacePath}/${projectName}`;
+    const fullPath = `${basePath}/${safePath}`;
 
     // Create folder recursively
     await execAsync(`docker exec -u developer ${containerName} mkdir -p ${fullPath}`);

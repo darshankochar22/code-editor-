@@ -7,21 +7,23 @@
 import {
   execAsync,
   getContainerName,
-  getProjectPath,
+  getWorkspacePath,
 } from './utils';
 
 /**
  * Deploy a Soroban contract to the Stellar testnet
  * @param userId The user ID
  * @param publicKey Optional public key for signing
+ * @param projectName The project name
  * @returns Deployment result
  */
-export async function deployContract(userId: string, publicKey?: string) {
+export async function deployContract(userId: string, publicKey?: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    const projectDir = projectName ? `${workspacePath}/${projectName}` : `${workspacePath}/soroban-hello-world`;
 
-    console.log(`Deploying contract in container: ${containerName}`);
+    console.log(`Deploying contract in container: ${containerName}, project: ${projectName || 'default'}`);
 
     // Build the deployment command with optional publicKey parameter
     // Note: --source-account is always required (the account that pays for deployment)
@@ -71,12 +73,12 @@ export async function deployContract(userId: string, publicKey?: string) {
 /**
  * Get the deployment status of a contract
  * @param userId The user ID
+ * @param projectName The project name
  * @returns Deployment status
  */
-export async function getDeploymentStatus(userId: string) {
+export async function getDeploymentStatus(userId: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
 
     // Check if contract has been deployed by looking for the contract alias
     const { stdout: contractCheck } = await execAsync(
@@ -106,14 +108,16 @@ export async function getDeploymentStatus(userId: string) {
  * Build and deploy a contract in one step
  * @param userId The user ID
  * @param publicKey Optional public key for signing
+ * @param projectName The project name
  * @returns Build and deploy result
  */
-export async function buildAndDeploy(userId: string, publicKey?: string) {
+export async function buildAndDeploy(userId: string, publicKey?: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    const projectDir = projectName ? `${workspacePath}/${projectName}` : `${workspacePath}/soroban-hello-world`;
 
-    console.log(`Building and deploying contract in container: ${containerName}`);
+    console.log(`Building and deploying contract in container: ${containerName}, project: ${projectName || 'default'}`);
 
     const deployCmd = publicKey
       ? `stellar contract deploy --wasm target/wasm32v1-none/release/hello_world.wasm --source-account darshan --network testnet --alias hello_world`

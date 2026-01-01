@@ -16,7 +16,8 @@ const server = new StellarRpc.Server(SOROBAN_URL);
 
 export async function deployWithWallet(
   userId: string,
-  logToTerminal: (msg: string, type: string) => void
+  logToTerminal: (msg: string, type: string) => void,
+  projectName?: string
 ) {
   try {
     logToTerminal("Starting wallet-based deployment...", "info");
@@ -25,7 +26,7 @@ export async function deployWithWallet(
     const buildResponse = await fetch("/api/docker", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "buildContract", userId }),
+      body: JSON.stringify({ action: "buildContract", userId, projectName }),
     });
 
     const buildData = await buildResponse.json();
@@ -125,10 +126,10 @@ export async function deployWithWallet(
     }
 
     // Convert ScVal to Buffer - the returnValue is a ScVal object
-    const wasmHashBytes = wasmHash.bytes ? wasmHash.bytes() : wasmHash;
+    const wasmHashBytes = wasmHash.bytes ? wasmHash.bytes() : (wasmHash as any);
 
     logToTerminal(
-      `✓ WASM uploaded (hash: ${Buffer.from(wasmHashBytes).toString('hex').slice(0, 16)}...)`,
+      `✓ WASM uploaded (hash: ${Buffer.from(wasmHashBytes as any).toString('hex').slice(0, 16)}...)`,
       "log"
     );
 

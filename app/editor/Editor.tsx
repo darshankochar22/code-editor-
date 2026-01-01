@@ -3,7 +3,11 @@ import { useState } from "react";
 import LeftComponent from "@/components/Left";
 import RightComponent from "@/components/Right";
 
-const EditorComponent = () => {
+interface EditorComponentProps {
+  projectName?: string;
+}
+
+const EditorComponent = ({ projectName }: EditorComponentProps) => {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [leftComponentVisible, setLeftComponentVisible] = useState(false);
   const [terminalVisible, setTerminalVisible] = useState(false);
@@ -44,6 +48,7 @@ const EditorComponent = () => {
             onToggleTerminal={handleToggleTerminal}
             onToggleLeftComponent={handleToggleLeftComponent}
             leftComponentVisible={leftComponentVisible}
+            projectName={projectName}
           />
         </div>
       </div>

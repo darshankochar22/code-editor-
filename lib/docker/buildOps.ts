@@ -7,20 +7,24 @@
 import {
   execAsync,
   getContainerName,
-  getProjectPath,
+  getWorkspacePath,
 } from './utils';
 
 /**
  * Build a Soroban contract
  * @param userId The user ID
+ * @param projectName The project name
  * @returns Build result with WASM binary
  */
-export async function buildContract(userId: string) {
+export async function buildContract(userId: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    const projectDir = projectName ? `${workspacePath}/${projectName}` : `${workspacePath}/soroban-hello-world`;
 
     console.log(`Building contract in container: ${containerName}`);
+    console.log(`Project name received: ${projectName || '(undefined - using default)'}`);
+    console.log(`Project directory: ${projectDir}`);
 
     console.log('=== STEP 1: Verify project directory exists ===');
     const { stdout: dirCheck } = await execAsync(
@@ -92,14 +96,16 @@ export async function buildContract(userId: string) {
 /**
  * Compile the contract using cargo
  * @param userId The user ID
+ * @param projectName The project name
  * @returns Compilation result
  */
-export async function compileContract(userId: string) {
+export async function compileContract(userId: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    const projectDir = projectName ? `${workspacePath}/${projectName}` : `${workspacePath}/soroban-hello-world`;
 
-    console.log(`Compiling contract in container: ${containerName}`);
+    console.log(`Compiling contract in container: ${containerName}, project: ${projectName || 'default'}`);
 
     const { stdout, stderr } = await execAsync(
       `docker exec -u developer -w ${projectDir} ${containerName} sh -c "cargo build --target wasm32v1-none --release"`,
@@ -128,12 +134,14 @@ export async function compileContract(userId: string) {
 /**
  * Get the build status of a contract
  * @param userId The user ID
+ * @param projectName The project name
  * @returns Build status
  */
-export async function getContractBuildStatus(userId: string) {
+export async function getContractBuildStatus(userId: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    const projectDir = projectName ? `${workspacePath}/${projectName}` : `${workspacePath}/soroban-hello-world`;
     const wasmPath = `${projectDir}/target/wasm32v1-none/release/hello_world.wasm`;
 
     const { stdout: wasmCheck } = await execAsync(
@@ -172,14 +180,16 @@ export async function getContractBuildStatus(userId: string) {
 /**
  * Clean build artifacts
  * @param userId The user ID
+ * @param projectName The project name
  * @returns Clean result
  */
-export async function cleanBuild(userId: string) {
+export async function cleanBuild(userId: string, projectName?: string) {
   try {
     const containerName = getContainerName(userId);
-    const projectDir = getProjectPath();
+    const workspacePath = getWorkspacePath();
+    const projectDir = projectName ? `${workspacePath}/${projectName}` : `${workspacePath}/soroban-hello-world`;
 
-    console.log(`Cleaning build artifacts in container: ${containerName}`);
+    console.log(`Cleaning build artifacts in container: ${containerName}, project: ${projectName || 'default'}`);
 
     await execAsync(
       `docker exec -u developer -w ${projectDir} ${containerName} sh -c "cargo clean"`,

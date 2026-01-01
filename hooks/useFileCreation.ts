@@ -32,7 +32,8 @@ export function useFileCreation(
   onLoadFiles: () => Promise<void>,
   onSetOpenFile: (file: FileNode | null) => void,
   onSetFileContents: (cb: (prev: Map<string, string>) => Map<string, string>) => void,
-  onSetExpandedFolders: (cb: (prev: Set<string>) => Set<string>) => void
+  onSetExpandedFolders: (cb: (prev: Set<string>) => Set<string>) => void,
+  projectName?: string
 ) {
   const [creatingItem, setCreatingItem] = useState<CreationState>(null);
   const [newItemName, setNewItemName] = useState("");
@@ -78,6 +79,7 @@ export function useFileCreation(
           action: creatingItem.type === "file" ? "createFile" : "createFolder",
           userId,
           filePath: fullPath,
+          projectName,
         }),
       });
 
@@ -117,7 +119,7 @@ export function useFileCreation(
       onError(`Failed to create ${creatingItem.type}`);
       setCreatingItem(null);
     }
-  }, [creatingItem, newItemName, userId, onLog, onError, onSetTerminalOpen, onLoadFiles, onSetOpenFile, onSetFileContents, onSetExpandedFolders]);
+  }, [creatingItem, newItemName, userId, onLog, onError, onSetTerminalOpen, onLoadFiles, onSetOpenFile, onSetFileContents, onSetExpandedFolders, projectName]);
 
   /**
    * Cancel file/folder creation

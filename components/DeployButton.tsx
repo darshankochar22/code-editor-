@@ -1,57 +1,69 @@
 "use client";
 
-import { useState } from 'react';
-import { deployWithWallet } from '@/lib/wallet-deploy';
-
+import { useState } from "react";
+import { deployWithWallet } from "@/lib/wallet-deploy";
 
 interface DeployButtonProps {
   userId: string;
-  onLog: (message: string, type: 'log' | 'error' | 'warn' | 'info') => void;
+  onLog: (message: string, type: "log" | "error" | "warn" | "info") => void;
   isConnected: boolean;
   onConnectWallet: () => Promise<void>;
+  projectName?: string;
 }
 
-export function DeployButton({ userId, onLog, isConnected, onConnectWallet }: DeployButtonProps) {
+export function DeployButton({
+  userId,
+  onLog,
+  isConnected,
+  onConnectWallet,
+  projectName,
+}: DeployButtonProps) {
   const [isDeploying, setIsDeploying] = useState(false);
-  
+
   const handleDeploy = async () => {
     if (!userId) {
-      onLog('✗ User ID not found', 'error');
+      onLog("✗ User ID not found", "error");
       return;
     }
-    
+
     // Check wallet connection
     if (!isConnected) {
-      onLog('Wallet not connected. Connecting...', 'warn');
+      onLog("Wallet not connected. Connecting...", "warn");
       await onConnectWallet();
-      
+
       // Give it a moment
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       if (!isConnected) {
-        onLog('✗ Wallet connection required', 'error');
+        onLog("✗ Wallet connection required", "error");
         return;
       }
     }
-    
+
     setIsDeploying(true);
-    
+
     try {
-      const result = await deployWithWallet(userId, onLog);
-      
+      const result = await deployWithWallet(
+        userId,
+        (msg: string, type: string) => {
+          onLog(msg, type as "log" | "error" | "warn" | "info");
+        },
+        projectName
+      );
+
       if (result.success) {
         // Show success message
         alert(`🎉 Contract deployed!\nContract ID: ${result.contractId}`);
       } else {
-        onLog(`✗ Deployment failed: ${result.error}`, 'error');
+        onLog(`✗ Deployment failed: ${result.error}`, "error");
       }
     } catch (error: any) {
-      onLog(`✗ Unexpected error: ${error.message}`, 'error');
+      onLog(`✗ Unexpected error: ${error.message}`, "error");
     } finally {
       setIsDeploying(false);
     }
   };
-  
+
   return (
     <button
       onClick={handleDeploy}
@@ -66,7 +78,7 @@ export function DeployButton({ userId, onLog, isConnected, onConnectWallet }: De
           Deploying...
         </span>
       ) : (
-        'Deploy'
+        "Deploy"
       )}
     </button>
   );

@@ -1,0 +1,167 @@
+/**
+ * Project Management - Auto-discovers Soroban projects from workspace
+ * Each folder in /workspace is a project initialized with `stellar contract init`
+ */
+
+import { execAsync, getWorkspacePath, getContainerName } from './docker/utils';
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: string;
+  description?: string;
+  contractType: 'soroban';
+}
+
+/**
+ * Get all projects by listing folders in workspace
+ */
+export async function getAllProjects(userId: string): Promise<Project[]> {
+  try {
+    const containerName = getContainerName(userId);
+    const projectPath = getWorkspacePath();
+    
+    // List all directories in workspace
+    const cmd = `docker exec ${containerName} find ${projectPath} -maxdepth 1 -type d ! -name workspace -exec basename {} \\;`;
+    const { stdout } = await execAsync(cmd);
+    
+    const folders = stdout
+      .trim()
+      .split('\n')
+      .filter(f => f.length > 0 && !f.startsWith('.'));
+
+    // Convert folders to projects
+    const projects: Project[] = folders.map(name => ({
+      id: `project_${name}`,
+      name,
+      createdAt: new Date().toISOString(),
+      description: `Soroban contract project`,
+      contractType: 'soroban',
+    }));
+
+    return projects;
+  } catch (error) {
+    console.error('Error reading projects:', error);
+    return [];
+  }
+}
+
+
+/**
+ * Create a new project using stellar contract init
+ */
+export async function createProject(
+  userId: string,
+  projectName: string,
+  description?: string
+): Promise<{ success: boolean; project?: Project; error?: string }> {
+  try {
+    const containerName = getContainerName(userId);
+    const projectPath = getWorkspacePath();
+    const projects = await getAllProjects(userId);
+    
+    // Check if project already exists
+    if (projects.some(p => p.name === projectName)) {
+      return { success: false, error: 'Project already exists' };
+    }
+
+    // Initialize Soroban contract using stellar command
+    const cmd = `docker exec -u developer ${containerName} sh -c "cd ${projectPath} && stellar contract init ${projectName}"`;
+    const result = await execAsync(cmd);
+    
+    console.log('Project initialization output:', result.stdout);
+
+    const newProject: Project = {
+      id: `project_${projectName}`,
+      name: projectName,
+      createdAt: new Date().toISOString(),
+      description: description || 'Soroban contract project',
+      contractType: 'soroban',
+    };
+
+    return { success: true, project: newProject };
+  } catch (error: any) {
+    console.error('Error creating project:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete a project folder
+ */
+export async function deleteProject(
+  userId: string,
+  projectName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const containerName = getContainerName(userId);
+    const projectPath = getWorkspacePath();
+
+    // Delete project folder
+    await execAsync(`docker exec -u developer ${containerName} rm -rf "${projectPath}/${projectName}"`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting project:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get project details
+ */
+export async function getProject(
+  userId: string,
+  projectName: string
+): Promise<{ success: boolean; project?: Project; error?: string }> {
+  try {
+    const projects = await getAllProjects(userId);
+    const project = projects.find(p => p.name === projectName);
+
+    if (!project) {
+      return { success: false, error: 'Project not found' };
+    }
+
+    return { success: true, project };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Rename a project folder
+ */
+export async function renameProject(
+  userId: string,
+  oldName: string,
+  newName: string
+): Promise<{ success: boolean; project?: Project; error?: string }> {
+  try {
+    const containerName = getContainerName(userId);
+    const projectPath = getWorkspacePath();
+    const projects = await getAllProjects(userId);
+
+    const project = projects.find(p => p.name === oldName);
+    if (!project) {
+      return { success: false, error: 'Project not found' };
+    }
+
+    if (projects.some(p => p.name === newName)) {
+      return { success: false, error: 'New name already exists' };
+    }
+
+    // Rename folder
+    await execAsync(`docker exec -u developer ${containerName} mv "${projectPath}/${oldName}" "${projectPath}/${newName}"`);
+
+    const renamedProject: Project = {
+      ...project,
+      name: newName,
+    };
+
+    return { success: true, project: renamedProject };
+  } catch (error: any) {
+    console.error('Error renaming project:', error);
+    return { success: false, error: error.message };
+  }
+}
+
