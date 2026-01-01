@@ -18,7 +18,7 @@ A modern, web-based code editor specifically designed for developing Soroban sma
 
 ### Editor Interface
 
-![Soroban Code Editor Interface](/public/Screenshot%202026-01-02%20at%2012.53.39%20AM.png)
+![Soroban Code Editor Interface](/public/editor-interface.png)
 
 The screenshot above shows the main editor interface with the code editor, file explorer, and integrated terminal.
 
