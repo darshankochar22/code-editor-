@@ -1,0 +1,19 @@
+{
+  "name": "lsp-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm server.ts"
+  },
+  "dependencies": {
+    "vscode-languageserver": "^9.0.1",
+    "vscode-ws-jsonrpc": "3.3.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}
